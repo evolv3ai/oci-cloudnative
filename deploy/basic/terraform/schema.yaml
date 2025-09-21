@@ -136,15 +136,21 @@ variables:
     description: "Assign public IPv4 addresses to both compute instances."
     default: true
   image_operating_system:
-    type: string
+    type: enum
     title: "Operating system"
-    description: "Name of the operating system to use when looking up the platform image."
-    default: "Oracle Linux"
+    description: "Operating system to use for both servers."
+    default: "Canonical Ubuntu"
+    enum:
+      - "Canonical Ubuntu"
+      - "Oracle Linux"
+    enumDisplayName:
+      - "Ubuntu"
+      - "Oracle Linux"
   image_operating_system_version:
     type: string
     title: "Operating system version"
-    description: "Version of the operating system to use when looking up the platform image."
-    default: "8"
+    description: "Version of the operating system (22.04 for Ubuntu, 8 or 9 for Oracle Linux)."
+    default: "22.04"
 
 outputs:
   network:

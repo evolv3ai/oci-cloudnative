@@ -13,8 +13,8 @@ The deployment creates the following resources:
 | Internet Gateway (`free-tier-igw`) | — | Provides outbound and inbound internet connectivity |
 | Route Table | 0.0.0.0/0 → Internet Gateway | Sends all traffic through the gateway |
 | Security List | TCP 22/80/443/3000 + optional KASM ports | Restricts ingress to the documented ports, allows all egress |
-| KASM server | VM.Standard.A1.Flex – 2 OCPUs / 12 GB RAM | Hosts KASM Workspaces; receives a 60 GB block volume |
-| Coolify server | VM.Standard.A1.Flex – 2 OCPUs / 12 GB RAM | Hosts Coolify; receives a 100 GB block volume |
+| KASM server | VM.Standard.A1.Flex – 2 OCPUs / 12 GB RAM / Ubuntu 22.04 | Hosts KASM Workspaces; receives a 60 GB block volume |
+| Coolify server | VM.Standard.A1.Flex – 2 OCPUs / 12 GB RAM / Ubuntu 22.04 | Hosts Coolify; receives a 100 GB block volume |
 
 The defaults consume the full Always Free compute allotment (4 OCPUs and 24 GB RAM) and 160 GB of block storage (out of the 200 GB allowance).
 

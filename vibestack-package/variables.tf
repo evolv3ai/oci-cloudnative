@@ -58,13 +58,13 @@ variable "deployment_label" {
 variable "image_operating_system" {
   description = "Operating system to use when looking up the base image."
   type        = string
-  default     = "Oracle Linux"
+  default     = "Canonical Ubuntu"
 }
 
 variable "image_operating_system_version" {
   description = "Operating system version to use when looking up the base image."
   type        = string
-  default     = "8"
+  default     = "22.04"
 }
 
 variable "custom_image_ocid" {
