@@ -6,7 +6,10 @@
       "Bash(gh release create:*)",
       "Bash(gh workflow:*)",
       "Bash(git add:*)",
-      "Bash(zip:*)"
+      "Bash(zip:*)",
+      "Bash(gh release upload:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []
