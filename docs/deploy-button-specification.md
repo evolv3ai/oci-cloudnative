@@ -42,11 +42,11 @@ This specification outlines the requirements for implementing a "Deploy to Oracl
 ### 1. Provider Configuration
 ```hcl
 terraform {
-  required_version = ">= 1.0"
+  required_version = ">= 1.5.0"
   required_providers {
     oci = {
-      source  = "oracle/oci"
-      version = ">= 4.0"
+      source  = "hashicorp/oci"
+      version = ">= 5.10.0"
     }
   }
 }
