@@ -9,7 +9,8 @@
       "Bash(zip:*)",
       "Bash(gh release upload:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Read(//c/Users/Owner/Downloads/**)"
     ],
     "deny": [],
     "ask": []

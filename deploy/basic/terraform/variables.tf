@@ -8,8 +8,8 @@ variable "region" {
   type        = string
 }
 
-variable "compartment_ocid" {
-  description = "OCID of the compartment that will own the networking and compute resources."
+variable "parent_compartment_ocid" {
+  description = "OCID of the parent compartment where the 'devlab' compartment will be created. Use tenancy OCID for root compartment."
   type        = string
 }
 

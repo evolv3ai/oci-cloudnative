@@ -9,7 +9,7 @@ locals {
 
 data "oci_core_images" "default" {
   count                    = local.use_image_lookup ? 1 : 0
-  compartment_id           = var.compartment_ocid
+  compartment_id           = oci_identity_compartment.devlab.id
   operating_system         = var.image_operating_system
   operating_system_version = var.image_operating_system_version
   shape                    = var.instance_shape

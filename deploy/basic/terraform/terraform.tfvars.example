@@ -3,7 +3,7 @@
 # Required tenancy details
 # tenancy_ocid       = "ocid1.tenancy.oc1..example"
 # region             = "us-phoenix-1"
-# compartment_ocid   = "ocid1.compartment.oc1..example"
+# parent_compartment_ocid = "ocid1.tenancy.oc1..example"  # Use tenancy OCID for root compartment
 
 # Authentication options (uncomment if running locally)
 # user_ocid        = "ocid1.user.oc1..example"

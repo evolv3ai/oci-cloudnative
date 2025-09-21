@@ -1,6 +1,6 @@
 resource "oci_core_instance" "kasm" {
   availability_domain = local.selected_ad
-  compartment_id      = var.compartment_ocid
+  compartment_id      = oci_identity_compartment.devlab.id
   display_name        = local.kasm_display_name
   shape               = var.instance_shape
 
@@ -42,7 +42,7 @@ resource "oci_core_instance" "kasm" {
 
 resource "oci_core_instance" "coolify" {
   availability_domain = local.selected_ad
-  compartment_id      = var.compartment_ocid
+  compartment_id      = oci_identity_compartment.devlab.id
   display_name        = local.coolify_display_name
   shape               = var.instance_shape
 

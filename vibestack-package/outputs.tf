@@ -1,3 +1,10 @@
+output "devlab_compartment" {
+  value = {
+    name = oci_identity_compartment.devlab.name
+    id   = oci_identity_compartment.devlab.id
+  }
+}
+
 output "network" {
   value = {
     vcn_name      = local.vcn_name

@@ -9,7 +9,7 @@ variableGroups:
     variables:
       - tenancy_ocid
       - region
-      - compartment_ocid
+      - parent_compartment_ocid
       - user_ocid
       - fingerprint
       - private_key_path
@@ -49,10 +49,10 @@ variables:
     title: "Region"
     description: "Target OCI region (for example, us-phoenix-1)."
     required: true
-  compartment_ocid:
+  parent_compartment_ocid:
     type: string
-    title: "Compartment OCID"
-    description: "Compartment that will contain all resources created by this stack."
+    title: "Parent Compartment OCID"
+    description: "Parent compartment where the 'devlab' compartment will be created. Use tenancy OCID for root compartment."
     required: true
   user_ocid:
     type: string

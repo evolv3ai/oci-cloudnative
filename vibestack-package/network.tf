@@ -1,18 +1,18 @@
 resource "oci_core_virtual_network" "free_tier" {
   cidr_block     = "10.0.0.0/16"
-  compartment_id = var.compartment_ocid
+  compartment_id = oci_identity_compartment.devlab.id
   display_name   = local.vcn_name
   dns_label      = local.vcn_dns_label
 }
 
 resource "oci_core_internet_gateway" "free_tier" {
-  compartment_id = var.compartment_ocid
+  compartment_id = oci_identity_compartment.devlab.id
   display_name   = local.igw_name
   vcn_id         = oci_core_virtual_network.free_tier.id
 }
 
 resource "oci_core_route_table" "public" {
-  compartment_id = var.compartment_ocid
+  compartment_id = oci_identity_compartment.devlab.id
   display_name   = local.route_table_name
   vcn_id         = oci_core_virtual_network.free_tier.id
 
@@ -24,7 +24,7 @@ resource "oci_core_route_table" "public" {
 }
 
 resource "oci_core_security_list" "public" {
-  compartment_id = var.compartment_ocid
+  compartment_id = oci_identity_compartment.devlab.id
   display_name   = local.security_list_name
   vcn_id         = oci_core_virtual_network.free_tier.id
 
@@ -37,10 +37,8 @@ resource "oci_core_security_list" "public" {
       description = ingress_security_rules.value.description
 
       tcp_options {
-        destination_port_range {
-          min = ingress_security_rules.value.port
-          max = ingress_security_rules.value.port
-        }
+        min = ingress_security_rules.value.port
+        max = ingress_security_rules.value.port
       }
     }
   }
