@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//n/Dropbox/07_Dev/oci-admin/codex-versions/v4/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

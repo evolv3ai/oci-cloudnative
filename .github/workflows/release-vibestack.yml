@@ -1,0 +1,122 @@
+name: Create VibeStack Release Package
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag name for manual release'
+        required: true
+        default: 'v1.0.0'
+
+jobs:
+  package-vibestack:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set release tag
+      id: release_tag
+      run: |
+        if [ "${{ github.event_name }}" = "release" ]; then
+          echo "tag_name=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
+        else
+          echo "tag_name=${{ github.event.inputs.tag_name }}" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Create VibeStack deployment package
+      run: |
+        # Create a temporary directory for the package
+        mkdir -p vibestack-package
+
+        # Copy the VibeStack Terraform files
+        cp deploy/basic/terraform/*.tf vibestack-package/
+        cp deploy/basic/terraform/schema.yaml vibestack-package/
+
+        # Create the zip file for Resource Manager
+        cd vibestack-package
+        zip -r ../mushop-basic-stack-${{ steps.release_tag.outputs.tag_name }}.zip .
+        cd ..
+
+        # Also create the "latest" version
+        cp mushop-basic-stack-${{ steps.release_tag.outputs.tag_name }}.zip mushop-basic-stack-latest.zip
+
+        # Show what we've created
+        ls -la *.zip
+        unzip -l mushop-basic-stack-latest.zip
+
+    - name: Upload package to release (if triggered by release)
+      if: github.event_name == 'release'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./mushop-basic-stack-${{ steps.release_tag.outputs.tag_name }}.zip
+        asset_name: mushop-basic-stack-${{ steps.release_tag.outputs.tag_name }}.zip
+        asset_content_type: application/zip
+
+    - name: Upload latest package to release (if triggered by release)
+      if: github.event_name == 'release'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./mushop-basic-stack-latest.zip
+        asset_name: mushop-basic-stack-latest.zip
+        asset_content_type: application/zip
+
+    - name: Create manual release (if triggered manually)
+      if: github.event_name == 'workflow_dispatch'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.release_tag.outputs.tag_name }}
+        name: VibeStack Release ${{ steps.release_tag.outputs.tag_name }}
+        body: |
+          VibeStack two-server deployment for OCI Always Free tier.
+
+          ## What's Included
+          - KASM Workspaces server (2 OCPUs, 12GB RAM, 60GB storage)
+          - Coolify server (2 OCPUs, 12GB RAM, 100GB storage)
+          - Shared VCN with public subnet and security rules
+
+          ## Deploy
+          Click the "Deploy to Oracle Cloud" button in the README.md or use this direct link:
+          [Deploy to OCI Resource Manager](https://cloud.oracle.com/resourcemanager/stacks/create?zipUrl=https://github.com/${{ github.repository }}/releases/download/${{ steps.release_tag.outputs.tag_name }}/mushop-basic-stack-latest.zip)
+
+          ## Requirements
+          - OCI Always Free tier account
+          - SSH public key for server access
+          - Target region with A1 compute capacity
+        files: |
+          mushop-basic-stack-${{ steps.release_tag.outputs.tag_name }}.zip
+          mushop-basic-stack-latest.zip
+        draft: false
+        prerelease: false
+
+    - name: Verify package contents
+      run: |
+        echo "📦 Package Contents:"
+        unzip -l mushop-basic-stack-latest.zip
+
+        echo -e "\n✅ Required Files Check:"
+        FILES=(
+          "providers.tf"
+          "variables.tf"
+          "outputs.tf"
+          "schema.yaml"
+          "compute.tf"
+          "network.tf"
+          "storage.tf"
+        )
+
+        for file in "${FILES[@]}"; do
+          if unzip -l mushop-basic-stack-latest.zip | grep -q "$file"; then
+            echo "✓ $file"
+          else
+            echo "✗ $file (MISSING)"
+          fi
+        done
