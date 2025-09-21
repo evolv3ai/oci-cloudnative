@@ -4,7 +4,9 @@
       "Read(//n/Dropbox/07_Dev/oci-admin/codex-versions/v4/**)",
       "Bash(gh repo set-default:*)",
       "Bash(gh release create:*)",
-      "Bash(gh workflow:*)"
+      "Bash(gh workflow:*)",
+      "Bash(git add:*)",
+      "Bash(zip:*)"
     ],
     "deny": [],
     "ask": []
