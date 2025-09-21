@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Read(//n/Dropbox/07_Dev/oci-admin/codex-versions/v4/**)"
+      "Read(//n/Dropbox/07_Dev/oci-admin/codex-versions/v4/**)",
+      "Bash(gh repo set-default:*)",
+      "Bash(gh release create:*)",
+      "Bash(gh workflow:*)"
     ],
     "deny": [],
     "ask": []
