@@ -13,7 +13,6 @@ variableGroups:
       - user_ocid
       - fingerprint
       - private_key_path
-      - config_file_profile
   - title: "Compute"
     variables:
       - ssh_authorized_keys
@@ -66,11 +65,6 @@ variables:
     type: string
     title: "Private key path"
     description: "Path to the API signing private key when running Terraform locally."
-  config_file_profile:
-    type: string
-    title: "CLI profile"
-    description: "Profile name from the OCI CLI config file to use for authentication."
-    default: "DEFAULT"
   ssh_authorized_keys:
     type: string
     title: "SSH public keys"

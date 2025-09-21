@@ -31,11 +31,6 @@ variable "private_key_path" {
   default     = ""
 }
 
-variable "config_file_profile" {
-  description = "Profile name from the OCI CLI config file to use for authentication."
-  type        = string
-  default     = "DEFAULT"
-}
 
 variable "ssh_authorized_keys" {
   description = "One or more SSH public keys that should be added to the compute instances."

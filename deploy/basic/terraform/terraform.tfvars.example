@@ -9,7 +9,6 @@
 # user_ocid        = "ocid1.user.oc1..example"
 # fingerprint      = "ab:cd:ef:12:34:56:78:90:ab:cd:ef:12:34:56:78:90"
 # private_key_path = "~/.oci/oci_api_key.pem"
-# config_file_profile = "DEFAULT"
 
 # SSH access
 # ssh_authorized_keys = "ssh-ed25519 AAAA... user@example"
