@@ -54,7 +54,7 @@ resource "oci_core_security_list" "public" {
 resource "oci_core_subnet" "public" {
   availability_domain = null
   cidr_block          = "10.0.1.0/24"
-  compartment_id      = var.compartment_ocid
+  compartment_id      = oci_identity_compartment.devlab.id
   display_name        = local.subnet_name
   dns_label           = local.subnet_dns_label
   route_table_id      = oci_core_route_table.public.id
