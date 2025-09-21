@@ -1,5 +1,11 @@
 # CHANGELOG
 
+2024-02-01 (v3.0.0)
+
+- Replaced the MuShop demo stack with the two-server VibeStack Always Free architecture.
+- Simplified networking into a single public VCN and subnet with recommended security rules.
+- Added dedicated block volumes sized for the KASM (60 GB) and Coolify (100 GB) servers.
+
 2022-02-08 (v2.1.0)
 
 - Terraform OCI Provider Updated to the latest

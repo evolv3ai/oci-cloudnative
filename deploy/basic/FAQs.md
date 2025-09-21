@@ -1,21 +1,17 @@
-# ![MuShop Logo](../../images/logo.png#gh-light-mode-only)![MuShop Logo - Dark Mode](../../images/logo-inverse.png#gh-dark-mode-only)
+# Frequently asked questions
 
----
+**What region should I deploy in?**
 
-## Frequently asked questions
+Always Free resources are only guaranteed in your home region. When in doubt, deploy the stack in the region that you selected during account signup.
 
-1. **I get an error stating** `shape VM.Standard.E2.1.Micro not found` **when I try to apply the terraform configuration.**
+**What happens if Terraform reports a capacity error?**
 
-     Your Always Free tier eligible compute resources are in a different availability domain than the one selected when the stack (the `.zip` file) was imported. Currently, in regions with multiple availability domains, Always Free compute resources are limited to only one of the availability domains. To find where your Always Free compute resources are, navigate to `Home > Governance > Limits, Quotas and Usage`. Select Compute as the service and cycle through the availability domains in the scope drop-down. The service limit column shows the limits for each resource type. Always Free compute resources are VMs of shape `VM.Standard.E2.1.Micro`. Check for this shape, and you will see one AD where you were allocated capacity. Note that paid services are always available in all availability domains where applicable.
+Ampere A1 capacity is limited per availability domain. If you receive an `out of host capacity` error, set the `availability_domain` variable to the AD that currently offers free-tier A1 capacity for your tenancy or retry later.
 
-    [Learn more](https://docs.cloud.oracle.com/iaas/Content/FreeTier/resourceref.htm) about Oracle Cloud Infrastructure's Always Free resources.
+**Can I deploy this stack without public IP addresses?**
 
-2. **I get an error stating** `Permissions granted to the object storage service in this region are insufficient to execute this policy` **when I try to apply the terraform configuration.**
+Yes. Set `assign_public_ip = false` and reach the servers over a private network connection such as VPN or Bastion. Remember to open the required ports on your private network appliance.
 
-    This is an edge case we are addressing and in the meantime, simply retrying the `Terraform Actions > Apply` on the stack details page should resolve it.
+**How do I remove the resources?**
 
-3. How do I delete the sample application and free up my resources ?
-
-   On Stack details page, click on `Terraform Actions > Destroy`. This will delete and free up all the resources that were created by the application.
-
-If you see something issue that is not listed here or have a question for us, please [open an issue](https://github.com/oracle/oci-quickstart-cloudnative/issues/new) and we will get back to you.
+Run `terraform destroy` from `deploy/basic/terraform` to delete all resources created by the stack.
