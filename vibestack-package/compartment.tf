@@ -1,7 +1,7 @@
-resource "oci_identity_compartment" "devlab" {
+resource "oci_identity_compartment" "vibestack" {
   compartment_id = var.parent_compartment_ocid
-  description    = "VibeStack development laboratory - contains KASM and Coolify servers"
-  name           = "devlab"
+  description    = "VibeStack compartment - contains KASM and Coolify servers"
+  name           = var.compartment_name
 
   enable_delete = true
 

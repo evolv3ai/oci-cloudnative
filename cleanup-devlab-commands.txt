@@ -1,0 +1,124 @@
+# OCI CLI Commands to Delete Resources in devlab Compartment
+# Compartment ID: ocid1.compartment.oc1..aaaaaaaae5v3sal4r6df2hrucviwerue5k3trdiln5buhh7wggjjgw2f7wua
+#
+# IMPORTANT: Run these commands in order. Replace <REGION> with your actual region (e.g., us-ashburn-1)
+
+# Set variables for easier use (bash/Linux/Mac)
+export COMPARTMENT_ID="ocid1.compartment.oc1..aaaaaaaae5v3sal4r6df2hrucviwerue5k3trdiln5buhh7wggjjgw2f7wua"
+export REGION="us-ashburn-1"  # Change to your region
+
+# For PowerShell/Windows:
+$COMPARTMENT_ID = "ocid1.compartment.oc1..aaaaaaaae5v3sal4r6df2hrucviwerue5k3trdiln5buhh7wggjjgw2f7wua"
+$REGION = "us-ashburn-1"  # Change to your region
+
+# ==================================================
+# STEP 1: LIST ALL RESOURCES (to see what needs deletion)
+# ==================================================
+
+# List compute instances
+oci compute instance list --compartment-id $COMPARTMENT_ID --region $REGION --all
+
+# List block volumes
+oci bv volume list --compartment-id $COMPARTMENT_ID --region $REGION --all
+
+# List VCNs
+oci network vcn list --compartment-id $COMPARTMENT_ID --region $REGION --all
+
+# List subnets
+oci network subnet list --compartment-id $COMPARTMENT_ID --region $REGION --all
+
+# ==================================================
+# STEP 2: DELETE COMPUTE INSTANCES
+# ==================================================
+
+# Terminate instances (replace <INSTANCE_OCID> with actual IDs from the list above)
+# You may have multiple instances - run this for each one
+oci compute instance terminate --instance-id <INSTANCE_OCID> --region $REGION --force
+
+# Example for KASM and Coolify servers if they exist:
+# oci compute instance terminate --instance-id <KASM_INSTANCE_ID> --region $REGION --force
+# oci compute instance terminate --instance-id <COOLIFY_INSTANCE_ID> --region $REGION --force
+
+# Wait for instances to be fully terminated before proceeding
+# Check status with:
+oci compute instance list --compartment-id $COMPARTMENT_ID --region $REGION --all
+
+# ==================================================
+# STEP 3: DELETE BLOCK VOLUMES
+# ==================================================
+
+# Delete block volumes (replace <VOLUME_OCID> with actual IDs)
+# Get volume IDs from the list command above
+oci bv volume delete --volume-id <VOLUME_OCID> --region $REGION --force
+
+# Example:
+# oci bv volume delete --volume-id <KASM_DATA_VOLUME_ID> --region $REGION --force
+# oci bv volume delete --volume-id <COOLIFY_DATA_VOLUME_ID> --region $REGION --force
+
+# ==================================================
+# STEP 4: DELETE BOOT VOLUMES (if not auto-deleted)
+# ==================================================
+
+# List boot volumes
+oci bv boot-volume list --compartment-id $COMPARTMENT_ID --region $REGION --all
+
+# Delete boot volumes if they still exist
+oci bv boot-volume delete --boot-volume-id <BOOT_VOLUME_OCID> --region $REGION --force
+
+# ==================================================
+# STEP 5: DELETE NETWORK RESOURCES
+# ==================================================
+
+# First, get the VCN ID
+oci network vcn list --compartment-id $COMPARTMENT_ID --region $REGION --all
+
+# Delete subnets (get IDs from list command)
+oci network subnet delete --subnet-id <SUBNET_OCID> --region $REGION --force
+
+# Delete internet gateways
+oci network internet-gateway list --compartment-id $COMPARTMENT_ID --region $REGION --all
+oci network internet-gateway delete --ig-id <IGW_OCID> --region $REGION --force
+
+# Delete route tables (except default)
+oci network route-table list --compartment-id $COMPARTMENT_ID --region $REGION --all
+# Only delete non-default route tables
+oci network route-table delete --rt-id <ROUTE_TABLE_OCID> --region $REGION --force
+
+# Delete security lists (except default)
+oci network security-list list --compartment-id $COMPARTMENT_ID --region $REGION --all
+# Only delete non-default security lists
+oci network security-list delete --security-list-id <SECURITY_LIST_OCID> --region $REGION --force
+
+# Finally, delete the VCN
+oci network vcn delete --vcn-id <VCN_OCID> --region $REGION --force
+
+# ==================================================
+# STEP 6: DELETE THE COMPARTMENT
+# ==================================================
+
+# Once all resources are deleted, delete the compartment itself
+oci iam compartment delete --compartment-id $COMPARTMENT_ID --force
+
+# ==================================================
+# ALTERNATIVE: Use Terraform Destroy (if you have the state file)
+# ==================================================
+
+# If you deployed using Terraform and still have the state file:
+cd deploy/basic/terraform
+terraform destroy -auto-approve
+
+# ==================================================
+# TROUBLESHOOTING
+# ==================================================
+
+# If deletion fails, check for:
+# 1. Resources in TERMINATING state - wait for completion
+# 2. Volume backups - delete these first
+# 3. Reserved IPs - release them
+# 4. Dependencies - some resources depend on others
+
+# To check if compartment is empty:
+oci search resource structured-search --query-text "query all resources where compartmentId = '$COMPARTMENT_ID'" --region $REGION
+
+# To see what's blocking deletion:
+oci iam compartment get --compartment-id $COMPARTMENT_ID

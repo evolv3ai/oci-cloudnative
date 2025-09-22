@@ -1,7 +1,7 @@
-output "devlab_compartment" {
+output "compartment" {
   value = {
-    name = oci_identity_compartment.devlab.name
-    id   = oci_identity_compartment.devlab.id
+    name = oci_identity_compartment.vibestack.name
+    id   = oci_identity_compartment.vibestack.id
   }
 }
 

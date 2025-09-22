@@ -10,6 +10,7 @@ variableGroups:
       - tenancy_ocid
       - region
       - parent_compartment_ocid
+      - compartment_name
       - user_ocid
       - fingerprint
       - private_key_path
@@ -51,8 +52,15 @@ variables:
   parent_compartment_ocid:
     type: string
     title: "Parent Compartment OCID"
-    description: "Parent compartment where the 'devlab' compartment will be created. Use tenancy OCID for root compartment."
+    description: "Parent compartment where the new compartment will be created. Use tenancy OCID for root compartment."
     required: true
+  compartment_name:
+    type: string
+    title: "Compartment Name"
+    description: "Name for the new compartment that will contain all VibeStack resources."
+    default: "vibestack"
+    required: true
+    pattern: "^[a-zA-Z][a-zA-Z0-9_-]{0,99}$"
   user_ocid:
     type: string
     title: "User OCID"
@@ -153,6 +161,8 @@ variables:
     default: "22.04"
 
 outputs:
+  compartment:
+    title: "Created compartment"
   network:
     title: "Network details"
   kasm_server:

@@ -9,8 +9,19 @@ variable "region" {
 }
 
 variable "parent_compartment_ocid" {
-  description = "OCID of the parent compartment where the 'devlab' compartment will be created. Use tenancy OCID for root compartment."
+  description = "OCID of the parent compartment where the new compartment will be created. Use tenancy OCID for root compartment."
   type        = string
+}
+
+variable "compartment_name" {
+  description = "Name for the new compartment that will contain all VibeStack resources."
+  type        = string
+  default     = "vibestack"
+
+  validation {
+    condition     = can(regex("^[a-zA-Z][a-zA-Z0-9_-]{0,99}$", var.compartment_name))
+    error_message = "Compartment name must start with a letter and can only contain letters, numbers, hyphens, and underscores. Maximum 100 characters."
+  }
 }
 
 variable "user_ocid" {

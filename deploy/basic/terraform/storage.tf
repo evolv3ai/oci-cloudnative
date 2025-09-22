@@ -1,6 +1,6 @@
 resource "oci_core_volume" "kasm_data" {
   availability_domain = local.selected_ad
-  compartment_id      = oci_identity_compartment.devlab.id
+  compartment_id      = oci_identity_compartment.vibestack.id
   display_name        = "kasm-data${local.suffix}"
   size_in_gbs         = var.kasm_block_volume_size_in_gbs
 }
@@ -13,7 +13,7 @@ resource "oci_core_volume_attachment" "kasm" {
 
 resource "oci_core_volume" "coolify_data" {
   availability_domain = local.selected_ad
-  compartment_id      = oci_identity_compartment.devlab.id
+  compartment_id      = oci_identity_compartment.vibestack.id
   display_name        = "coolify-data${local.suffix}"
   size_in_gbs         = var.coolify_block_volume_size_in_gbs
 }
