@@ -1,0 +1,177 @@
+name: Create VibeStack Clean Packages
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag name for manual release'
+        required: true
+        default: 'v1.0.0'
+  push:
+    branches: [main]
+    paths: ['.github/workflows/release-packages.yml']
+
+jobs:
+  package-vibestack:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set release tag
+      id: release_tag
+      run: |
+        if [ "${{ github.event_name }}" = "release" ]; then
+          echo "tag_name=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
+        else
+          echo "tag_name=${{ github.event.inputs.tag_name }}" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Create VibeStack Complete package
+      run: |
+        # Create directory for VibeStack Complete (both servers)
+        mkdir -p vibestack-complete
+        cp terraform/vibestack/*.tf vibestack-complete/
+        cp terraform/vibestack/schema.yaml vibestack-complete/
+
+        # Create the zip file
+        cd vibestack-complete
+        zip -r ../vibestack-complete-${{ steps.release_tag.outputs.tag_name }}.zip .
+        cd ..
+        cp vibestack-complete-${{ steps.release_tag.outputs.tag_name }}.zip vibestack-complete.zip
+
+    - name: Create Coolify Only package
+      run: |
+        # Create directory for Coolify Only
+        mkdir -p coolify-only-package
+        cp terraform/coolify-only/*.tf coolify-only-package/
+        cp terraform/coolify-only/schema.yaml coolify-only-package/
+
+        # Create the zip file
+        cd coolify-only-package
+        zip -r ../coolify-only-${{ steps.release_tag.outputs.tag_name }}.zip .
+        cd ..
+        cp coolify-only-${{ steps.release_tag.outputs.tag_name }}.zip coolify-only.zip
+
+    - name: Create KASM Only package
+      run: |
+        # Create directory for KASM Only
+        mkdir -p kasm-only-package
+        cp terraform/kasm-only/*.tf kasm-only-package/
+        cp terraform/kasm-only/schema.yaml kasm-only-package/
+
+        # Create the zip file
+        cd kasm-only-package
+        zip -r ../kasm-only-${{ steps.release_tag.outputs.tag_name }}.zip .
+        cd ..
+        cp kasm-only-${{ steps.release_tag.outputs.tag_name }}.zip kasm-only.zip
+
+    - name: Show created packages
+      run: |
+        echo "📦 Created packages:"
+        ls -la *.zip
+
+        echo -e "\n📋 VibeStack Complete contents:"
+        unzip -l vibestack-complete.zip
+
+        echo -e "\n📋 Coolify Only contents:"
+        unzip -l coolify-only.zip
+
+        echo -e "\n📋 KASM Only contents:"
+        unzip -l kasm-only.zip
+
+    - name: Upload packages to release (if triggered by release)
+      if: github.event_name == 'release'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.event.release.tag_name }}
+        files: |
+          vibestack-complete-${{ steps.release_tag.outputs.tag_name }}.zip
+          vibestack-complete.zip
+          coolify-only-${{ steps.release_tag.outputs.tag_name }}.zip
+          coolify-only.zip
+          kasm-only-${{ steps.release_tag.outputs.tag_name }}.zip
+          kasm-only.zip
+
+    - name: Create manual release (if triggered manually)
+      if: github.event_name == 'workflow_dispatch'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.release_tag.outputs.tag_name }}
+        name: VibeStack Clean Packages ${{ steps.release_tag.outputs.tag_name }}
+        body: |
+          VibeStack deployment packages for Oracle Cloud Always Free tier.
+
+          ## 🚀 Quick Deploy Options
+
+          | Package | Description | Deploy |
+          |---------|-------------|--------|
+          | **VibeStack Complete** | Both KASM + Coolify servers (4 OCPUs, 24GB RAM) | [![Deploy to Oracle Cloud](https://oci-resourcemanager-plugin.plugins.oci.oraclecloud.com/latest/deploy-to-oracle-cloud.svg)](https://cloud.oracle.com/resourcemanager/stacks/create?zipUrl=https://github.com/${{ github.repository }}/releases/latest/download/vibestack-complete.zip) |
+          | **Coolify Only** | Self-hosted app platform (2 OCPUs, 12GB RAM) | [![Deploy to Oracle Cloud](https://oci-resourcemanager-plugin.plugins.oci.oraclecloud.com/latest/deploy-to-oracle-cloud.svg)](https://cloud.oracle.com/resourcemanager/stacks/create?zipUrl=https://github.com/${{ github.repository }}/releases/latest/download/coolify-only.zip) |
+          | **KASM Only** | Remote workspace server (2 OCPUs, 12GB RAM) | [![Deploy to Oracle Cloud](https://oci-resourcemanager-plugin.plugins.oci.oraclecloud.com/latest/deploy-to-oracle-cloud.svg)](https://cloud.oracle.com/resourcemanager/stacks/create?zipUrl=https://github.com/${{ github.repository }}/releases/latest/download/kasm-only.zip) |
+
+          ## 📋 What Gets Created
+
+          ### VibeStack Complete (Both Servers)
+          - **KASM Server**: VM.Standard.A1.Flex (2 OCPUs, 12GB RAM, 60GB storage)
+          - **Coolify Server**: VM.Standard.A1.Flex (2 OCPUs, 12GB RAM, 100GB storage)
+          - **Total**: 4 OCPUs, 24GB RAM, 160GB storage (80% of Always Free allocation)
+
+          ### Coolify Only
+          - **Coolify Server**: VM.Standard.A1.Flex (2 OCPUs, 12GB RAM, 100GB storage)
+          - **Self-hosted platform** for deploying applications like Vercel/Netlify
+
+          ### KASM Only
+          - **KASM Server**: VM.Standard.A1.Flex (2 OCPUs, 12GB RAM, 60GB storage)
+          - **Remote workspaces** with full desktop environments in the browser
+
+          ## 🔧 All Packages Include
+          - **Custom compartment** (you name it during deployment)
+          - **Ubuntu 22.04 LTS** (or Oracle Linux option)
+          - **Public networking** with security groups
+          - **SSH access** with your public key
+          - **Always Free tier compatible** - no charges
+
+          ## Requirements
+          - OCI Always Free tier account
+          - SSH public key for server access
+          - Target region with A1 compute capacity
+        files: |
+          vibestack-complete-${{ steps.release_tag.outputs.tag_name }}.zip
+          vibestack-complete.zip
+          coolify-only-${{ steps.release_tag.outputs.tag_name }}.zip
+          coolify-only.zip
+          kasm-only-${{ steps.release_tag.outputs.tag_name }}.zip
+          kasm-only.zip
+        draft: false
+        prerelease: false
+
+    - name: Verify package contents
+      run: |
+        echo "📦 Package Verification:"
+
+        REQUIRED_FILES=(
+          "providers.tf"
+          "variables.tf"
+          "outputs.tf"
+          "schema.yaml"
+          "compute.tf"
+          "network.tf"
+          "storage.tf"
+          "locals.tf"
+          "compartment.tf"
+          "datasources.tf"
+        )
+
+        for package in "vibestack-complete.zip" "coolify-only.zip" "kasm-only.zip"; do
+          echo -e "\n✅ Checking $package:"
+          for file in "${REQUIRED_FILES[@]}"; do
+            if unzip -l "$package" | grep -q "$file"; then
+              echo "  ✓ $file"
+            else
+              echo "  ✗ $file (MISSING)"
+            fi
+          done
+        done
