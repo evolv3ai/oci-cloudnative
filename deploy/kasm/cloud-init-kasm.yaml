@@ -200,16 +200,16 @@ write_files:
     permissions: '0644'
 
 runcmd:
-  - echo "Installing Ansible and collections..."
+  - echo 'Installing Ansible and collections...'
   - pip3 install ansible
   - pip3 install docker
   - ansible-galaxy collection install community.general
   - ansible-galaxy collection install community.docker
   - ansible-galaxy collection install ansible.posix
   - chown -R ubuntu:ubuntu /opt/vibestack-ansible
-  - echo "✅ VibeStack Ansible environment ready!"
-  - echo "📁 Configuration files: /opt/vibestack-ansible/"
-  - echo "🚀 Run: cd /opt/vibestack-ansible && ansible-playbook kasm/install.yml"
+  - echo 'Ansible environment ready'
+  - echo 'Configuration files in /opt/vibestack-ansible/'
+  - echo 'To configure run cd /opt/vibestack-ansible && ansible-playbook kasm/install.yml'
 
 final_message: |
   VibeStack KASM server is ready!
