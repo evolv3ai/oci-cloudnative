@@ -1,0 +1,160 @@
+title: "KASM Only - Remote Workspace Server"
+description: "Deploy only KASM Workspaces server on Oracle Cloud Always Free tier (2 OCPUs, 12GB RAM, 60GB storage)"
+schemaVersion: 1.1.0
+version: "20240201"
+locale: "en"
+
+variableGroups:
+  - title: "Authentication"
+    variables:
+      - tenancy_ocid
+      - region
+      - parent_compartment_ocid
+      - compartment_name
+      - user_ocid
+      - fingerprint
+      - private_key_path
+  - title: "Compute"
+    variables:
+      - ssh_authorized_keys
+      - instance_shape
+      - availability_domain
+      - deployment_label
+      - custom_image_ocid
+  - title: "KASM server sizing"
+    variables:
+      - kasm_ocpus
+      - kasm_memory_in_gbs
+      - kasm_block_volume_size_in_gbs
+      - kasm_custom_tcp_ports
+      - assign_public_ip
+  - title: "Operating system"
+    variables:
+      - image_operating_system
+      - image_operating_system_version
+
+variables:
+  tenancy_ocid:
+    type: string
+    title: "Tenancy OCID"
+    description: "OCID of the tenancy where resources will be created."
+    required: true
+  region:
+    type: string
+    title: "Region"
+    description: "Target OCI region (for example, us-phoenix-1)."
+    required: true
+  parent_compartment_ocid:
+    type: string
+    title: "Parent Compartment OCID"
+    description: "Parent compartment where the new compartment will be created. Use tenancy OCID for root compartment."
+    required: true
+  compartment_name:
+    type: string
+    title: "Compartment Name"
+    description: "Name for the new compartment that will contain all VibeStack resources."
+    default: "vibestack"
+    required: true
+    pattern: "^[a-zA-Z][a-zA-Z0-9_-]{0,99}$"
+  user_ocid:
+    type: string
+    title: "User OCID"
+    description: "Optional user OCID used for API key authentication."
+  fingerprint:
+    type: string
+    title: "Fingerprint"
+    description: "Optional fingerprint for the API signing key."
+  private_key_path:
+    type: string
+    title: "Private key path"
+    description: "Path to the API signing private key when running Terraform locally."
+  ssh_authorized_keys:
+    type: string
+    title: "SSH public keys"
+    description: "SSH public keys (one per line) that should be provisioned on the server."
+    required: true
+    multiline: true
+  instance_shape:
+    type: string
+    title: "Compute shape"
+    description: "Compute shape to use for the server."
+    default: "VM.Standard.A1.Flex"
+  availability_domain:
+    type: string
+    title: "Availability domain"
+    description: "Optional availability domain name. Leave blank to use the first available AD."
+  deployment_label:
+    type: string
+    title: "Deployment label"
+    description: "Optional suffix appended to resource display names to keep them unique."
+  custom_image_ocid:
+    type: string
+    title: "Custom image OCID"
+    description: "Override the automatically selected platform image with a custom compute image."
+  kasm_ocpus:
+    type: integer
+    title: "KASM OCPUs"
+    description: "Number of OCPUs allocated to the KASM server."
+    minimum: 1
+    default: 2
+  kasm_memory_in_gbs:
+    type: integer
+    title: "KASM memory (GB)"
+    description: "Memory assigned to the KASM server in GB."
+    minimum: 1
+    default: 12
+  kasm_block_volume_size_in_gbs:
+    type: integer
+    title: "KASM data volume size (GB)"
+    description: "Size of the block volume attached to the KASM server."
+    minimum: 50
+    default: 60
+  kasm_custom_tcp_ports:
+    type: array
+    title: "Additional KASM TCP ports"
+    description: "Extra TCP ports that should be opened to the internet for the KASM server."
+    items:
+      type: integer
+  assign_public_ip:
+    type: boolean
+    title: "Assign public IP addresses"
+    description: "Assign public IPv4 address to the compute instance."
+    default: true
+  image_operating_system:
+    type: enum
+    title: "Operating system"
+    description: "Operating system to use for the server."
+    default: "Canonical Ubuntu"
+    enum:
+      - "Canonical Ubuntu"
+      - "Oracle Linux"
+    enumDisplayName:
+      - "Ubuntu"
+      - "Oracle Linux"
+  image_operating_system_version:
+    type: string
+    title: "Operating system version"
+    description: "Version of the operating system (22.04 for Ubuntu, 8 or 9 for Oracle Linux)."
+    default: "22.04"
+  deploy_kasm:
+    type: boolean
+    title: "Deploy KASM server"
+    description: "Deploy KASM Workspaces server."
+    default: true
+    visible: false
+  deploy_coolify:
+    type: boolean
+    title: "Deploy Coolify server"
+    description: "Deploy Coolify server."
+    default: false
+    visible: false
+
+outputs:
+  compartment:
+    title: "Created compartment"
+  network:
+    title: "Network details"
+  kasm_server:
+    title: "KASM server"
+  security_list_ingress_ports:
+    title: "Open TCP ports"

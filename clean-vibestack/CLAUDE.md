@@ -10,9 +10,9 @@ This is a clean VibeStack deployment repository for Oracle Cloud Infrastructure 
 
 ### Deployment Models
 
-- **VibeStack Full** (`deploy/full/`): Both KASM + Coolify servers (4 OCPUs, 24GB RAM, 160GB storage)
-- **VibeStack Coolify** (`deploy/coolify/`): Self-hosted app platform (2 OCPUs, 12GB RAM, 100GB storage)
-- **VibeStack KASM** (`deploy/kasm/`): Remote workspace server (2 OCPUs, 12GB RAM, 60GB storage)
+- **VibeStack Complete** (`terraform/vibestack/`): Both KASM + Coolify servers (4 OCPUs, 24GB RAM, 160GB storage)
+- **Coolify Only** (`terraform/coolify-only/`): Self-hosted app platform (2 OCPUs, 12GB RAM, 100GB storage)
+- **KASM Only** (`terraform/kasm-only/`): Remote workspace server (2 OCPUs, 12GB RAM, 60GB storage)
 
 ## Architecture
 
@@ -37,9 +37,9 @@ The Terraform module uses conditional deployment based on boolean variables:
 - `deploy_coolify = true/false`: Controls Coolify server deployment
 
 Each package sets these variables appropriately:
-- **VibeStack Full**: `deploy_kasm = true`, `deploy_coolify = true`
-- **VibeStack Coolify**: `deploy_kasm = false`, `deploy_coolify = true`
-- **VibeStack KASM**: `deploy_kasm = true`, `deploy_coolify = false`
+- **VibeStack Complete**: `deploy_kasm = true`, `deploy_coolify = true`
+- **Coolify Only**: `deploy_kasm = false`, `deploy_coolify = true`
+- **KASM Only**: `deploy_kasm = true`, `deploy_coolify = false`
 
 ## Development Commands
 
@@ -48,9 +48,9 @@ Each package sets these variables appropriately:
 **Deploy any package:**
 ```bash
 # Choose your deployment directory
-cd deploy/full        # Both servers (VibeStack Full)
-cd deploy/coolify      # Coolify only
-cd deploy/kasm         # KASM only
+cd terraform/vibestack      # Both servers
+cd terraform/coolify-only   # Coolify only
+cd terraform/kasm-only      # KASM only
 
 # Configure variables
 cp terraform.tfvars.example terraform.tfvars
@@ -158,16 +158,14 @@ terraform destroy
 ## Repository Structure
 
 ```
-deploy/
-├── full/               # VibeStack Full package (KASM + Coolify)
-├── coolify/            # VibeStack Coolify package (Coolify only)
-├── kasm/               # VibeStack KASM package (KASM only)
-└── Each contains:
-    ├── *.tf            # Terraform configuration files
-    ├── schema.yaml     # Resource Manager UI schema
-    └── terraform.tfvars.example
+terraform/
+├── vibestack/          # VibeStack Complete package
+├── coolify-only/       # Coolify Only package
+├── kasm-only/          # KASM Only package
+├── *.tf                # Shared Terraform configuration
+└── schema.yaml         # Package-specific Resource Manager schema
 
-scripts/
+tools/
 ├── generate-termius-import.sh      # Generate Termius SSH import files (Bash)
 ├── generate-termius-import.ps1     # Generate Termius SSH import files (PowerShell)
 ├── manage-deployment-logs.sh       # Secure log management (Bash)
@@ -177,9 +175,7 @@ scripts/
 
 docs/
 ├── oci-vibestack-recommended-setup.md
-├── deploy-button-specification.md
-├── log-management.md
-└── termius-import.md
+└── deploy-button-specification.md
 
 .github/workflows/
 └── release-packages.yml    # Automated package creation
@@ -199,7 +195,7 @@ config/
 
 ### VibeStack Workflow
 
-1. **Choose deployment**: Select `deploy/full/`, `deploy/coolify/`, or `deploy/kasm/`
+1. **Choose deployment**: Select `terraform/vibestack/`, `terraform/coolify-only/`, or `terraform/kasm-only/`
 2. **Configure Terraform**: Edit `terraform.tfvars` with OCI credentials and compartment preferences
 3. **Deploy infrastructure**: Run `terraform init && terraform apply`
 4. **Access servers**: Use output IPs to SSH into deployed servers

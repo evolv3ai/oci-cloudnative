@@ -1,102 +1,66 @@
-# Generic
-.DS_Store
-*.tgz
-*.zip
-.dccache
+# VibeStack Security and Local Files
 
-## Kubeconfig
-kubeconfig
-generated/
+# Environment variables - NEVER commit sensitive data
+.env
+.env.local
+.env.*.local
 
-## Secrets
-credentials.txt
-credentials.env
-Wallet_*
-**/.env
-deploy/helm-chart/**/secrets/*
-!deploy/helm-chart/**/secrets/*.md
-
-## helm
-# lockfiles for requirements.yaml for dependent charts
-requirements.lock
-
-## Folders
-bin/
-**/.gradle/**
-**/.settings/**
-**/build/**
-**/target/**
-**/.vscode/**
-**/.project
-**/.classpath
-installs/
-**/.idea/**
-**/node_modules/**
-deploy/basic/terraform/image*
-
-# Log file
-*.log
-
-### Go ###
-# Binaries for programs and plugins
-*.so
-*.dylib
-
-# Test binary, built with `go test -c`
-*.test
-
-# Output of the go coverage tool, specifically when used with LiteIDE
-*.out
-
-### Go Patch ###
-vendor/
-Godeps/
-pkg/
-
-### Java ###
-# Compiled class file
-*.class
-
-# Package Files #
-*.jar
-*.war
-*.nar
-*.ear
-*.zip
-*.tar.gz
-*.tar.xz
-*.rar
-
-# Keystores
-tnsnames.ora
-keystore.jks
-truststore.jks
-
-### Terraform ###
-# Local .terraform directories
-**/.terraform/*
-**/.terrafor*
-!.terraform.lock.hcl
-
-# .tfstate files
+# Terraform state and backup files
 *.tfstate
 *.tfstate.*
-
-# Ignore any .tfvars files that are generated automatically for each Terraform run. Most
-# .tfvars files are managed as part of configuration and so should be included in
-# version control.
-#
 *.tfvars
+!terraform.tfvars.example
 
-# Ignore override files as they are usually used to override resources locally and so
-# are not checked in
-override.tf
-override.tf.json
-*_override.tf
-*_override.tf.json
+# Terraform directories
+.terraform/
+.terraform.lock.hcl
 
-# tf crash log
-crash.log
+# SSH keys and certificates
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
 
-# Claude Code 
-CLAUDE.md
+# Generated import files (may contain IPs)
+termius-import/
+*.csv
+*ssh-config*
+connect.sh
+
+# OCI CLI config
+.oci/
+
+# Logs and sensitive deployment data
+logs/
+*.log
+terraform.log
+terraform-state.txt
+terraform-state.json
+deployment-*.txt
+deployment-*.json
+oci-output*.txt
+oci-output*.json
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
+.cache/

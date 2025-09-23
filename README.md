@@ -1,128 +1,146 @@
-# ![MuShop Logo](./images/logo.png#gh-light-mode-only)![MuShop Logo - Dark Mode](./images/logo-inverse.png#gh-dark-mode-only)
+# VibeStack - OCI Always Free Deployments
 
-MuShop is a showcase of several [Oracle Cloud Infrastructure][oci] services in a unified reference application. The sample application implements an e-commerce platform built as a set of micro-services. The accompanying content can be used to get started with cloud native application development on [Oracle Cloud Infrastructure][oci].
+Deploy KASM Workspaces and/or Coolify on Oracle Cloud Infrastructure using only Always Free tier resources.
 
-| ![home](./images/screenshot/mushop.home.png) | ![browse](./images/screenshot/mushop.browse.png) | ![cart](./images/screenshot/mushop.cart.png) | ![about](./images/screenshot/mushop.about.png) |
-|---|---|---|---|
+VibeStack can be deployed in different configurations to match your needs. All deployment options utilize [Oracle Cloud Infrastructure][oci] Always Free tier resources that can be used indefinitely.
 
-MuShop can be deployed in different ways to explore [Oracle Cloud Infrastructure][oci] based on your subscription. Both deployment models can be used with trial subscriptions. However, [Oracle Cloud Infrastructure][oci] offers an *Always Free* tier with resources that can be used indefinitely.
-
-| [Basic: `deploy/basic`](#Getting-Started-with-MuShop-Basic) | [Complete: `deploy/complete`](#Getting-Started-with-MuShop-Complete) |
+| [Single Server: `VibeStack Coolify` or `VibeStack KASM`](#single-server-deployments) | [Full Stack: `VibeStack Full`](#vibestack-full) |
 |---|---|
-| Simplified runtime utilizing **only** [Always Free](https://www.oracle.com/cloud/free/) eligible resources. <br/><br/> Deploy using: <br/>  1. [Terraform][tf] <br/>  2. [Resource Manager][orm_landing] following the steps below <br/>  3. (Recommended) Button below - launches in Resource Manager directly | Polyglot set of micro-services deployed on [Kubernetes](https://kubernetes.io/), showcasing [Oracle Cloud Native](https://www.oracle.com/cloud/cloud-native/) technologies and backing services. <br/><br/> Deploy using: <br/>  1. [Helm](https://helm.sh) <br/> 2. [Terraform][tf] <br/>  3. [Resource Manager][orm_landing] <br/>  4. (Recommended) Button below - launches in Resource Manager directly |
-| [![Deploy to Oracle Cloud][magic_button]][magic_mushop_basic_stack]| [![Deploy to Oracle Cloud][magic_button]][magic_mushop_stack]|
+| Deploy **either** Coolify or KASM individually using half of your Always Free allocation. <br/><br/> **Coolify**: Self-hosted app platform (like Vercel/Netlify) <br/> • 2 OCPUs, 12GB RAM, 100GB storage <br/><br/> **KASM**: Remote workspace server <br/> • 2 OCPUs, 12GB RAM, 60GB storage | Full deployment with **both** servers maximizing your Always Free tier. <br/><br/> **Includes**: <br/> • KASM Workspaces server <br/> • Coolify platform server <br/> • Shared networking infrastructure <br/> • 4 OCPUs, 24GB RAM, 160GB storage total |
+| **VibeStack Coolify:** [![Deploy to Oracle Cloud](https://oci-resourcemanager-plugin.plugins.oci.oraclecloud.com/latest/deploy-to-oracle-cloud.svg)](https://cloud.oracle.com/resourcemanager/stacks/create?zipUrl=https://github.com/evolv3ai/oci-cloudnative/releases/latest/download/vibestack-coolify.zip) <br/><br/> **VibeStack KASM:** [![Deploy to Oracle Cloud](https://oci-resourcemanager-plugin.plugins.oci.oraclecloud.com/latest/deploy-to-oracle-cloud.svg)](https://cloud.oracle.com/resourcemanager/stacks/create?zipUrl=https://github.com/evolv3ai/oci-cloudnative/releases/latest/download/vibestack-kasm.zip) | **VibeStack Full:** [![Deploy to Oracle Cloud](https://oci-resourcemanager-plugin.plugins.oci.oraclecloud.com/latest/deploy-to-oracle-cloud.svg)](https://cloud.oracle.com/resourcemanager/stacks/create?zipUrl=https://github.com/evolv3ai/oci-cloudnative/releases/latest/download/vibestack-full.zip) |
 
 ```text
-mushop
-└── deploy
-    ├── basic
-    └── complete
+oci-cloudnative
+├── deploy/
+│   ├── full/               # VibeStack Full (KASM + Coolify)
+│   ├── coolify/            # VibeStack Coolify only
+│   └── kasm/               # VibeStack KASM only
+├── scripts/                # Management and utility scripts
+└── docs/                   # Documentation
 ```
 
-## Getting Started with MuShop Basic
+[oci]: https://cloud.oracle.com
 
-This is a Terraform configuration that deploys the MuShop basic sample application on [Oracle Cloud Infrastructure][oci] and is designed to run using only the Always Free tier resources.
+## Single Server Deployments
 
-The repository contains the application code as well as the [Terraform][tf] code to create a [Resource Manager][orm] stack, that creates all the required resources and configures the application on the created resources. To simplify getting started, the Resource Manager Stack is created as part of each [release](https://github.com/oracle-quickstart/oci-cloudnative/releases)
+Choose one of these options if you want to deploy just a single server and keep half your Always Free resources available for other uses.
 
-The steps below guide you through deploying the application on your tenancy using the OCI Resource Manager.
+### VibeStack Coolify
+- **What**: Self-hosted application deployment platform (like Vercel/Netlify/Heroku)
+- **Resources**: VM.Standard.A1.Flex (2 OCPUs, 12GB RAM, 100GB storage)
+- **Perfect for**: Developers wanting their own PaaS for deploying Docker containers, static sites, and databases
+- **Ports**: 22 (SSH), 80/443 (HTTP/S), 3000 (Coolify UI)
 
-1. Download the latest [`mushop-basic-stack-latest.zip`](../../releases/latest/download/mushop-basic-stack-latest.zip) file.
-2. [Login](https://cloud.oracle.com/resourcemanager/stacks/create) to Oracle Cloud Infrastructure to import the stack
-    > `Home > Developer Services > Resource Manager > Stacks > Create Stack`
-3. Upload the `mushop-basic-stack-latest.zip` file that was downloaded earlier, and provide a name and description for the stack
-4. Configure the stack
-   1. **Database Name** - You can choose to provide a database name (optional)
-   2. **Node Count** - Select if you want to deploy one or two application instances.
-   3. **SSH Public Key** - (Optional) Provide a public SSH key if you wish to establish SSH access to the compute node(s).
-5. Review the information and click Create button.
-   > The upload can take a few seconds, after which you will be taken to the newly created stack
-6. On Stack details page, click on `Terraform Actions > Apply`
+### VibeStack KASM
+- **What**: Browser-based remote workspace server with containerized desktops
+- **Resources**: VM.Standard.A1.Flex (2 OCPUs, 12GB RAM, 60GB storage)
+- **Perfect for**: Remote development environments, secure browsing, virtual desktops
+- **Ports**: 22 (SSH), 80/443 (HTTP/S), plus any custom ports you configure
 
-All the resources will be created, and the URL to the load balancer will be displayed as `lb_public_url` as in the example below.
-> The same information is displayed on the Application Information tab
+## VibeStack Full
 
-```text
-Outputs:
+The complete deployment uses your full Always Free allocation to run both servers together.
 
-autonomous_database_password = <generated>
+- **KASM Server**: Remote workspace hosting (2 OCPUs, 12GB RAM, 60GB storage)
+- **Coolify Server**: App deployment platform (2 OCPUs, 12GB RAM, 100GB storage)
+- **Shared Infrastructure**: VCN, subnet, internet gateway, and security rules
+- **Total Resources**: 4 OCPUs, 24GB RAM, 160GB storage (80% of free tier)
 
-comments = The application URL will be unavailable for a few minutes after provisioning, while the application is configured
+## 🔧 All Packages Include
 
-dev = Made with ❤ by Oracle Developers
+- **Custom compartment** (you name it during deployment)
+- **Ubuntu 22.04 LTS** (or Oracle Linux option)
+- **Public networking** with security groups
+- **SSH access** with your public key
+- **Always Free tier compatible** - no charges
 
-lb_public_url = http://xxx.xxx.xxx.xxx
+## 📖 Documentation
+
+- [VibeStack Recommended Setup](docs/oci-vibestack-recommended-setup.md)
+- [Deploy Button Specification](docs/deploy-button-specification.md)
+- [Termius Import Generator](docs/termius-import.md) - Generate SSH client import files
+- [Log Management](docs/log-management.md) - Secure handling of deployment logs
+
+## 🔧 Post-Deployment Tools
+
+### Option 1: Direct Import (if Terraform is available)
+
+```bash
+# Linux/macOS
+./generate-termius-import.sh
+
+# Windows PowerShell
+.\generate-termius-import.ps1
 ```
 
-> The application is being deployed to the compute instances asynchronously, and it may take a couple of minutes for the URL to serve the application.
+### Option 2: From Saved Logs (recommended for OCI Resource Manager)
 
-### Cleanup
+```bash
+# 1. Save your deployment log securely
+./manage-deployment-logs.sh save-state path/to/terraform-state.txt
 
-Even though it is Always Free, you will likely want to terminate the demo application
-in your Oracle Cloud Infrastructure tenancy. With the use of Terraform, the [Resource Manager][orm]
-stack is also responsible for terminating the application.
+# 2. Generate import files from saved log
+./manage-deployment-logs.sh import-from-log
 
-Follow these steps to completely remove all provisioned resources:
+# 3. Import to Termius, then cleanup
+./manage-deployment-logs.sh cleanup
+```
 
-1. Return to the Oracle Cloud Infrastructure [Console](https://cloud.oracle.com/resourcemanager/stacks)
+This workflow securely handles sensitive deployment data and creates import files for Termius or other SSH clients. All log files are Git-ignored for security. See the [Log Management documentation](docs/log-management.md) for details.
 
-  > `Home > Developer Services > Resource Manager > Stacks`
+## 🛠️ Manual Deployment
 
-1. Select the stack created previously to open the Stack Details view
-1. From the Stack Details, select `Terraform Actions > Destroy`
-1. Confirm the **Destroy** job when prompted
+If you prefer Terraform CLI instead of the deploy buttons:
 
-  > The job status will be **In Progress** while resources are terminated
+```bash
+# Clone and navigate
+git clone https://github.com/evolv3ai/oci-cloudnative.git
+cd oci-cloudnative/deploy/full  # or coolify/ or kasm/
 
-1. Once the destroy job has succeeded, return to the Stack Details page
-1. Click `Delete Stack` and confirm when prompted
+# Configure
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars with your OCI credentials
 
-#### Basic Topology
+# Deploy
+terraform init
+terraform apply
 
-The following diagram shows the topology created by this stack.
+# Cleanup when done
+terraform destroy
+```
 
-![MuShop Basic Infra](./images/basic/00-Free-Tier.png)
+## 🧹 Resource Cleanup
 
----
+For complete resource removal when Terraform state is lost or corrupted:
 
-## Getting Started with MuShop Complete
+```bash
+# Complete compartment cleanup (IRREVERSIBLE!)
+./cleanup-compartment.sh <compartment-ocid>
 
-MuShop Complete is a polyglot micro-services application built to showcase a cloud native approach to application development on [Oracle Cloud Infrastructure][oci] using Oracle's [cloud native](https://www.oracle.com/cloud/cloud-native/) services. MuShop Complete uses a Kubernetes cluster, and can be deployed using the provided `helm` charts (preferred), or Kubernetes manifests. It is recommended to use an Oracle Container Engine for Kubernetes cluster, however other Kubernetes distributions will also work.
+# Example:
+./cleanup-compartment.sh ocid1.compartment.oc1..aaaaaaaae5v3sal4r6df2hrucviwerue5k3trdiln5buhh7wggjjgw2f7wua
+```
 
-The [helm chart documentation][chartdocs] walks through the deployment process and various options for customizing the deployment.
+⚠️ **Warning**: This script permanently deletes ALL resources in the specified compartment. It follows proper dependency order to avoid hanging deletions:
 
-### Complete Topology
+1. Volume attachments → 2. Compute instances → 3. Block volumes → 4. Boot volumes
+5. Load balancers → 6. Subnets → 7. Internet gateways → 8. Route tables
+9. Security lists → 10. VCNs → 11. Compartment
 
-The following diagram shows the topology created by this stack.
+## 💡 Why VibeStack?
 
-![MuShop Complete Infra](./images/complete/00-Topology.png)
+- **Always Free**: Uses Oracle Cloud's generous Always Free tier
+- **Proven Stack**: KASM + Coolify is a powerful combination
+- **Compartmentalized**: Clean organization with custom naming
+- **Ubuntu**: Modern, well-supported OS with excellent ARM compatibility
+- **One-Click**: Deploy buttons make it trivial to get started
 
-### [![Deploy to Oracle Cloud][magic_button]][magic_mushop_stack]
+## 🔗 Related Projects
 
-## Contributing
+- [KASM Workspaces](https://kasmweb.com/) - Containerized workspaces
+- [Coolify](https://coolify.io/) - Self-hosted app deployment platform
+- [Oracle Cloud Always Free](https://www.oracle.com/cloud/free/) - Generous free tier
 
-This project welcomes contributions from the community. Before submitting a pull request, please [review our contribution guide](./CONTRIBUTING.md)
+## 📄 License
 
-## Security
-
-Please consult the [security guide](./SECURITY.md) for our responsible security vulnerability disclosure process
-
-## Questions
-
-If you have an issue or a question, please take a look at our [FAQs](./deploy/basic/FAQs.md) or [open an issue](https://github.com/oracle-quickstart/oci-cloudnative/issues/new).
-
-[oci]: https://cloud.oracle.com/en_US/cloud-infrastructure
-[orm]: https://docs.cloud.oracle.com/iaas/Content/ResourceManager/Concepts/resourcemanager.htm
-[tf]: https://www.terraform.io
-[orm_landing]:https://www.oracle.com/cloud/systems-management/resource-manager/
-[chartdocs]: https://github.com/oracle-quickstart/oci-cloudnative/tree/master/deploy/complete/helm-chart#setup
-[magic_button]: https://oci-resourcemanager-plugin.plugins.oci.oraclecloud.com/latest/deploy-to-oracle-cloud.svg
-[magic_mushop_basic_stack]: https://cloud.oracle.com/resourcemanager/stacks/create?zipUrl=https://github.com/oracle-quickstart/oci-cloudnative/releases/latest/download/mushop-basic-stack-latest.zip
-[magic_mushop_stack]: https://cloud.oracle.com/resourcemanager/stacks/create?zipUrl=https://github.com/oracle-quickstart/oci-cloudnative/releases/latest/download/mushop-stack-latest.zip
-
-## License
-
-Copyright (c) 2019 Oracle and/or its affiliates.
-
-Released under the Universal Permissive License v1.0 as shown at
-<https://oss.oracle.com/licenses/upl/>.
+Released under the Universal Permissive License v1.0
