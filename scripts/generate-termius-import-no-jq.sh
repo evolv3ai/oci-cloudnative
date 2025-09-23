@@ -114,15 +114,15 @@ fi
 # Generate CSV file
 echo -e "\n${YELLOW}Generating CSV import file...${NC}"
 cat > "$OUTPUT_DIR/vibestack-termius.csv" << EOF
-Label,Tags,Address,Username,Port,Notes
+Groups,Label,Tags,Hostname/IP,Protocol,Port
 EOF
 
 if [ -n "$KASM_IP" ] && [ "$KASM_IP" != "null" ]; then
-    echo "KASM-server-$COMPARTMENT_NAME,\"vibestack oci kasm $COMPARTMENT_NAME\",$KASM_IP,$SSH_USERNAME,$SSH_PORT,\"KASM Workspaces server - VibeStack deployment (2 OCPUs, 12GB RAM, 60GB storage) - Private IP: $KASM_PRIVATE_IP\"" >> "$OUTPUT_DIR/vibestack-termius.csv"
+    echo "VibeStack,KASM-server-$COMPARTMENT_NAME,\"vibestack,kasm,oci\",$KASM_IP,SSH,$SSH_PORT" >> "$OUTPUT_DIR/vibestack-termius.csv"
 fi
 
 if [ -n "$COOLIFY_IP" ] && [ "$COOLIFY_IP" != "null" ]; then
-    echo "Coolify-server-$COMPARTMENT_NAME,\"vibestack oci coolify $COMPARTMENT_NAME\",$COOLIFY_IP,$SSH_USERNAME,$SSH_PORT,\"Coolify app platform server - VibeStack deployment (2 OCPUs, 12GB RAM, 100GB storage) - Private IP: $COOLIFY_PRIVATE_IP\"" >> "$OUTPUT_DIR/vibestack-termius.csv"
+    echo "VibeStack,Coolify-server-$COMPARTMENT_NAME,\"vibestack,coolify,oci\",$COOLIFY_IP,SSH,$SSH_PORT" >> "$OUTPUT_DIR/vibestack-termius.csv"
 fi
 
 # Generate SSH config file

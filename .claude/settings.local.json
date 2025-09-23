@@ -14,7 +14,9 @@
       "Read(//n/Dropbox/07_Dev/oci-admin/**)",
       "Bash(oci compute instance list:*)",
       "Bash(ping:*)",
-      "Read(//tmp/SnagitTemp/**)"
+      "Read(//tmp/SnagitTemp/**)",
+      "Bash(gh release view:*)",
+      "Bash(./scripts/manage-deployment-logs.sh import-from-log:*)"
     ],
     "deny": [],
     "ask": []

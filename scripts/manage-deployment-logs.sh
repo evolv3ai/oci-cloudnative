@@ -196,12 +196,29 @@ FAKE_TF
 
         # Run the import script with custom terraform dir
         echo -e "${YELLOW}Generating Termius import files...${NC}"
-        if [ -f "./generate-termius-import.sh" ]; then
-            TERRAFORM_DIR="$temp_tf_dir" ./generate-termius-import.sh
+
+        # Try jq version first, then fallback to no-jq version
+        if command -v jq >/dev/null 2>&1; then
+            if [ -f "./scripts/generate-termius-import.sh" ]; then
+                TERRAFORM_DIR="$temp_tf_dir" ./scripts/generate-termius-import.sh
+            elif [ -f "./generate-termius-import.sh" ]; then
+                TERRAFORM_DIR="$temp_tf_dir" ./generate-termius-import.sh
+            else
+                echo -e "${RED}❌ generate-termius-import.sh not found${NC}"
+                rm -rf "$temp_dir"
+                exit 1
+            fi
         else
-            echo -e "${RED}❌ generate-termius-import.sh not found${NC}"
-            rm -rf "$temp_dir"
-            exit 1
+            echo -e "${YELLOW}jq not found, using no-jq version...${NC}"
+            if [ -f "./scripts/generate-termius-import-no-jq.sh" ]; then
+                TERRAFORM_DIR="$temp_tf_dir" ./scripts/generate-termius-import-no-jq.sh
+            elif [ -f "./generate-termius-import-no-jq.sh" ]; then
+                TERRAFORM_DIR="$temp_tf_dir" ./generate-termius-import-no-jq.sh
+            else
+                echo -e "${RED}❌ generate-termius-import-no-jq.sh not found${NC}"
+                rm -rf "$temp_dir"
+                exit 1
+            fi
         fi
 
         # Cleanup
