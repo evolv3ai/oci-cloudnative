@@ -28,7 +28,8 @@
       "Bash(find:*)",
       "Bash(powershell.exe:*)",
       "Bash(scp:*)",
-      "Bash(oci network security-list get:*)"
+      "Bash(oci network security-list get:*)",
+      "Bash(git tag:*)"
     ],
     "deny": [],
     "ask": []
