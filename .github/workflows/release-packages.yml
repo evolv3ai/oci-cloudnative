@@ -10,7 +10,7 @@ on:
         required: true
         default: 'v1.0.0'
   push:
-    branches: [main]
+    branches: [main, master]
     paths: ['.github/workflows/release-packages.yml']
 
 jobs:
