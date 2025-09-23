@@ -36,6 +36,7 @@ jobs:
         mkdir -p vibestack-full-package
         cp deploy/full/*.tf vibestack-full-package/
         cp deploy/full/schema.yaml vibestack-full-package/
+        cp deploy/full/cloud-init-*.yaml vibestack-full-package/ 2>/dev/null || true
 
         # Create the zip file with vibestack- prefix for consistent naming
         cd vibestack-full-package
@@ -52,6 +53,7 @@ jobs:
         mkdir -p vibestack-coolify-package
         cp deploy/coolify/*.tf vibestack-coolify-package/
         cp deploy/coolify/schema.yaml vibestack-coolify-package/
+        cp deploy/coolify/cloud-init-*.yaml vibestack-coolify-package/ 2>/dev/null || true
 
         # Create the zip file with vibestack- prefix for consistent naming
         cd vibestack-coolify-package
@@ -68,6 +70,7 @@ jobs:
         mkdir -p vibestack-kasm-package
         cp deploy/kasm/*.tf vibestack-kasm-package/
         cp deploy/kasm/schema.yaml vibestack-kasm-package/
+        cp deploy/kasm/cloud-init-*.yaml vibestack-kasm-package/ 2>/dev/null || true
 
         # Create the zip file with vibestack- prefix for consistent naming
         cd vibestack-kasm-package
