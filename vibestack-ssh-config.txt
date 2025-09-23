@@ -1,0 +1,20 @@
+# VibeStack OCI Servers SSH Configuration
+# Add this to your ~/.ssh/config file or import via ssh_config format in Termius
+
+Host vibestack-kasm
+    HostName 150.136.241.1
+    User ubuntu
+    Port 22
+    IdentityFile ~/.ssh/your-private-key
+    StrictHostKeyChecking no
+    UserKnownHostsFile /dev/null
+    # KASM Workspaces server (2 OCPUs, 12GB RAM, 60GB storage)
+
+Host vibestack-coolify
+    HostName 132.145.209.240
+    User ubuntu
+    Port 22
+    IdentityFile ~/.ssh/your-private-key
+    StrictHostKeyChecking no
+    UserKnownHostsFile /dev/null
+    # Coolify app platform server (2 OCPUs, 12GB RAM, 100GB storage)

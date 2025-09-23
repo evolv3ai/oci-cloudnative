@@ -1,0 +1,22 @@
+{
+  "hosts": [
+    {
+      "label": "KASM-server",
+      "address": "150.136.241.1",
+      "username": "ubuntu",
+      "port": 22,
+      "tags": ["vibestack", "oci", "kasm"],
+      "notes": "KASM Workspaces server - VibeStack deployment\n2 OCPUs, 12GB RAM, 60GB storage\nPrivate IP: 10.0.1.176",
+      "group": "VibeStack OCI"
+    },
+    {
+      "label": "Coolify-server",
+      "address": "132.145.209.240",
+      "username": "ubuntu",
+      "port": 22,
+      "tags": ["vibestack", "oci", "coolify"],
+      "notes": "Coolify app platform server - VibeStack deployment\n2 OCPUs, 12GB RAM, 100GB storage\nPrivate IP: 10.0.1.85",
+      "group": "VibeStack OCI"
+    }
+  ]
+}

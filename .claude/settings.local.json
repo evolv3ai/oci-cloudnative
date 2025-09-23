@@ -10,7 +10,11 @@
       "Bash(gh release upload:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Read(//c/Users/Owner/Downloads/**)"
+      "Read(//c/Users/Owner/Downloads/**)",
+      "Read(//n/Dropbox/07_Dev/oci-admin/**)",
+      "Bash(oci compute instance list:*)",
+      "Bash(ping:*)",
+      "Read(//tmp/SnagitTemp/**)"
     ],
     "deny": [],
     "ask": []
