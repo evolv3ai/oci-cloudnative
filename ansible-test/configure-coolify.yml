@@ -1,0 +1,131 @@
+---
+# Configure existing Coolify server deployed via Terraform
+# Based on N:\Dropbox\07_Dev\ansible\playbooks\coolify\install.yml
+
+- name: Configure Existing Coolify Server
+  hosts: coolify_servers
+  become: yes
+  vars:
+    coolify_version: "latest"
+    docker_version: "24.0"
+
+  tasks:
+    - name: Server information
+      debug:
+        msg:
+          - "🚀 Configuring Existing Coolify Server"
+          - "📋 Host: {{ inventory_hostname }}"
+          - "🌐 IP: {{ ansible_host }}"
+          - "🏗️ Version: {{ coolify_version }}"
+
+    - name: Check if Coolify is already installed
+      stat:
+        path: /data/coolify
+      register: coolify_installed
+
+    - name: Display current status
+      debug:
+        msg: "Coolify installation status: {{ 'Already installed' if coolify_installed.stat.exists else 'Not installed' }}"
+
+    - name: Update system packages
+      apt:
+        update_cache: yes
+        upgrade: dist
+        cache_valid_time: 3600
+
+    - name: Install required packages
+      apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+          - software-properties-common
+          - apt-transport-https
+          - git
+          - wget
+        state: present
+
+    - name: Install Docker
+      block:
+        - name: Check if Docker is installed
+          command: docker --version
+          register: docker_check
+          failed_when: false
+          changed_when: false
+
+        - name: Docker installation status
+          debug:
+            msg: "Docker status: {{ 'Already installed' if docker_check.rc == 0 else 'Not installed' }}"
+
+        - name: Add Docker GPG key
+          apt_key:
+            url: https://download.docker.com/linux/ubuntu/gpg
+            state: present
+          when: docker_check.rc != 0
+
+        - name: Add Docker repository
+          apt_repository:
+            repo: "deb [arch={{ ansible_architecture }}] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+            state: present
+          when: docker_check.rc != 0
+
+        - name: Install Docker packages
+          apt:
+            name:
+              - docker-ce
+              - docker-ce-cli
+              - containerd.io
+              - docker-compose-plugin
+            state: present
+            update_cache: yes
+          when: docker_check.rc != 0
+
+        - name: Start and enable Docker
+          systemd:
+            name: docker
+            state: started
+            enabled: yes
+
+    - name: Install Coolify
+      block:
+        - name: Download Coolify installer
+          get_url:
+            url: https://get.coolify.io
+            dest: /tmp/install_coolify.sh
+            mode: '0755'
+          when: not coolify_installed.stat.exists
+
+        - name: Run Coolify installer
+          shell: /tmp/install_coolify.sh
+          args:
+            creates: /data/coolify
+          when: not coolify_installed.stat.exists
+
+        - name: Wait for Coolify to start
+          wait_for:
+            port: 8000
+            delay: 30
+            timeout: 300
+
+        - name: Test Coolify accessibility
+          uri:
+            url: "http://{{ ansible_host }}:8000"
+            method: GET
+            timeout: 10
+          register: coolify_response
+          failed_when: false
+
+        - name: Display Coolify access information
+          debug:
+            msg:
+              - "✅ Coolify Configuration Complete!"
+              - "🌐 Public Access: http://{{ ansible_host }}:8000"
+              - "🔒 Local Access: http://10.0.1.31:8000"
+              - "📊 HTTP Response: {{ coolify_response.status | default('Connection failed') }}"
+              - ""
+              - "🔗 Next Steps:"
+              - "1. Open http://{{ ansible_host }}:8000 in browser"
+              - "2. Complete initial Coolify setup"
+              - "3. Deploy test applications"
+              - "4. Document configured state for stack testing"

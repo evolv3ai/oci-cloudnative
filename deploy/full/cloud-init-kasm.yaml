@@ -1,0 +1,222 @@
+#cloud-config
+# VibeStack KASM Server - Ansible Ready Configuration
+# This script prepares the server with Ansible and configuration playbooks
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - python3
+  - python3-pip
+  - git
+  - curl
+  - wget
+  - software-properties-common
+
+write_files:
+  - path: /opt/vibestack-ansible/kasm/install.yml
+    content: |
+      ---
+      # KASM Workspaces Installation Playbook
+      # Installs KASM on OCI ARM64 instances
+
+      - name: Install KASM Workspaces
+        hosts: localhost
+        become: yes
+        connection: local
+        vars:
+          kasm_version: "1.17.0"
+          swap_file: "/swapfile"
+          swap_size: "2G"
+
+        tasks:
+          - name: System information
+            debug:
+              msg:
+                - "🚀 KASM Workspaces Installation"
+                - "📋 Host: {{ inventory_hostname }}"
+                - "🏗️ Architecture: ARM64 (Ampere)"
+
+          - name: Update system packages
+            apt:
+              update_cache: yes
+              upgrade: dist
+              cache_valid_time: 3600
+
+          - name: Install required packages
+            apt:
+              name:
+                - ca-certificates
+                - curl
+                - gnupg
+                - lsb-release
+                - software-properties-common
+                - apt-transport-https
+              state: present
+
+          - name: Configure swap space
+            block:
+              - name: Check if swap file exists
+                stat:
+                  path: "{{ swap_file }}"
+                register: swap_file_stat
+
+              - name: Create swap file
+                command: fallocate -l {{ swap_size }} {{ swap_file }}
+                when: not swap_file_stat.stat.exists
+
+              - name: Set swap file permissions
+                file:
+                  path: "{{ swap_file }}"
+                  mode: '0600'
+                when: not swap_file_stat.stat.exists
+
+              - name: Make swap file
+                command: mkswap {{ swap_file }}
+                when: not swap_file_stat.stat.exists
+
+              - name: Enable swap
+                command: swapon {{ swap_file }}
+                when: not swap_file_stat.stat.exists
+
+              - name: Add swap to fstab
+                lineinfile:
+                  path: /etc/fstab
+                  line: "{{ swap_file }} none swap sw 0 0"
+                  create: yes
+
+          - name: Install Docker
+            block:
+              - name: Add Docker GPG key
+                apt_key:
+                  url: https://download.docker.com/linux/ubuntu/gpg
+                  state: present
+
+              - name: Add Docker repository
+                apt_repository:
+                  repo: "deb [arch=arm64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+                  state: present
+
+              - name: Install Docker packages
+                apt:
+                  name:
+                    - docker-ce
+                    - docker-ce-cli
+                    - containerd.io
+                    - docker-compose-plugin
+                  state: present
+                  update_cache: yes
+
+              - name: Start and enable Docker
+                systemd:
+                  name: docker
+                  state: started
+                  enabled: yes
+
+              - name: Add user to docker group
+                user:
+                  name: "{{ ansible_user_id }}"
+                  groups: docker
+                  append: yes
+
+          - name: Download and install KASM Workspaces
+            block:
+              - name: Create KASM directory
+                file:
+                  path: /tmp/kasm_install
+                  state: directory
+                  mode: '0755'
+
+              - name: Download KASM installer
+                get_url:
+                  url: "https://kasm-static-content.s3.amazonaws.com/kasm_release_{{ kasm_version }}.tar.gz"
+                  dest: /tmp/kasm_install/kasm_release.tar.gz
+                  mode: '0644'
+
+              - name: Extract KASM installer
+                unarchive:
+                  src: /tmp/kasm_install/kasm_release.tar.gz
+                  dest: /tmp/kasm_install
+                  remote_src: yes
+
+              - name: Run KASM installation
+                shell: |
+                  cd /tmp/kasm_install/kasm_release
+                  ./install.sh --accept-eula --swap-size {{ swap_size }}
+                args:
+                  creates: /opt/kasm/current
+
+              - name: Get KASM admin credentials
+                slurp:
+                  src: /opt/kasm/current/conf/app/admin_creds.txt
+                register: admin_creds
+                ignore_errors: yes
+
+              - name: Display KASM access information
+                debug:
+                  msg:
+                    - "✅ KASM Installation Complete!"
+                    - "Access URL: https://{{ ansible_default_ipv4.address }}"
+                    - "Admin credentials can be found in: /opt/kasm/current/conf/app/admin_creds.txt"
+    permissions: '0644'
+
+  - path: /opt/vibestack-ansible/README.md
+    content: |
+      # VibeStack Ansible Configuration
+
+      This directory contains Ansible playbooks for configuring your VibeStack servers.
+
+      ## Quick Start
+
+      ### Configure KASM
+      ```bash
+      cd /opt/vibestack-ansible
+      ansible-playbook kasm/install.yml
+      ```
+
+      ### Access KASM
+      After installation, open your browser to:
+      https://$(curl -s ifconfig.me)
+
+      ## What Gets Installed
+
+      - **Docker**: Container runtime for KASM
+      - **KASM Workspaces**: Browser-based remote desktop platform
+      - **Swap**: 2GB swap file for better performance
+      - **Initial Setup**: Ready for web-based configuration
+
+      ## Next Steps
+
+      1. Run the installation playbook above
+      2. Open KASM in your browser (HTTPS)
+      3. Login with admin credentials from: /opt/kasm/current/conf/app/admin_creds.txt
+      4. Configure workspaces and users
+
+      ## Troubleshooting
+
+      - Check KASM status: `sudo docker ps`
+      - View admin credentials: `sudo cat /opt/kasm/current/conf/app/admin_creds.txt`
+      - Restart KASM: `cd /opt/kasm/current && sudo docker compose restart`
+    permissions: '0644'
+
+runcmd:
+  - echo "Installing Ansible and collections..."
+  - pip3 install ansible
+  - pip3 install docker
+  - ansible-galaxy collection install community.general
+  - ansible-galaxy collection install community.docker
+  - ansible-galaxy collection install ansible.posix
+  - chown -R ubuntu:ubuntu /opt/vibestack-ansible
+  - echo "✅ VibeStack Ansible environment ready!"
+  - echo "📁 Configuration files: /opt/vibestack-ansible/"
+  - echo "🚀 Run: cd /opt/vibestack-ansible && ansible-playbook kasm/install.yml"
+
+final_message: |
+  VibeStack KASM server is ready!
+
+  Next steps:
+  1. SSH into your server
+  2. Run: cd /opt/vibestack-ansible && ansible-playbook kasm/install.yml
+  3. Access KASM at https://[YOUR-SERVER-IP]
+
+  The server has been configured with Ansible and all necessary playbooks.

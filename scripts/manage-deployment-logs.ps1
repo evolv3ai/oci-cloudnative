@@ -209,9 +209,9 @@ function Import-FromLog {
         # Set environment variable to point to our log file as terraform output
         $env:VIBESTACK_LOG_FILE = $latestLog
 
-        if (Test-Path "./generate-termius-import.ps1") {
+        if (Test-Path "$PSScriptRoot/generate-termius-import.ps1") {
             # Run the import script
-            & "./generate-termius-import.ps1"
+            & "$PSScriptRoot/generate-termius-import.ps1"
             Write-Host "✅ Import files generated successfully!" -ForegroundColor $Green
             Write-Host "Check the termius-import/ directory for your files"
         } else {
