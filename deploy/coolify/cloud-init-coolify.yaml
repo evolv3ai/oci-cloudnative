@@ -1,0 +1,191 @@
+#cloud-config
+# VibeStack Coolify Server - Ansible Ready Configuration
+# This script prepares the server with Ansible and configuration playbooks
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - python3
+  - python3-pip
+  - git
+  - curl
+  - wget
+  - software-properties-common
+
+write_files:
+  - path: /opt/vibestack-ansible/coolify/install.yml
+    content: |
+      ---
+      # Coolify Installation Playbook
+      # Installs Coolify on OCI instances
+
+      - name: Install Coolify
+        hosts: localhost
+        become: yes
+        connection: local
+        vars:
+          coolify_version: "latest"
+          docker_version: "24.0"
+
+        tasks:
+          - name: System information
+            debug:
+              msg:
+                - "🚀 Coolify Installation"
+                - "📋 Host: {{ inventory_hostname }}"
+                - "🏗️ Version: {{ coolify_version }}"
+
+          - name: Update system packages
+            apt:
+              update_cache: yes
+              upgrade: dist
+              cache_valid_time: 3600
+
+          - name: Install required packages
+            apt:
+              name:
+                - ca-certificates
+                - curl
+                - gnupg
+                - lsb-release
+                - software-properties-common
+                - apt-transport-https
+                - git
+                - wget
+              state: present
+
+          - name: Install Docker
+            block:
+              - name: Check if Docker is installed
+                command: docker --version
+                register: docker_check
+                failed_when: false
+                changed_when: false
+
+              - name: Docker installation status
+                debug:
+                  msg: "Docker status: {{ 'Already installed' if docker_check.rc == 0 else 'Not installed' }}"
+
+              - name: Add Docker GPG key
+                apt_key:
+                  url: https://download.docker.com/linux/ubuntu/gpg
+                  state: present
+                when: docker_check.rc != 0
+
+              - name: Add Docker repository
+                apt_repository:
+                  repo: "deb [arch={{ ansible_architecture }}] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+                  state: present
+                when: docker_check.rc != 0
+
+              - name: Install Docker packages
+                apt:
+                  name:
+                    - docker-ce
+                    - docker-ce-cli
+                    - containerd.io
+                    - docker-compose-plugin
+                  state: present
+                  update_cache: yes
+                when: docker_check.rc != 0
+
+              - name: Start and enable Docker
+                systemd:
+                  name: docker
+                  state: started
+                  enabled: yes
+
+          - name: Install Coolify
+            block:
+              - name: Check if Coolify is already installed
+                stat:
+                  path: /data/coolify
+                register: coolify_installed
+
+              - name: Download Coolify installer
+                get_url:
+                  url: https://cdn.coollabs.io/coolify/install.sh
+                  dest: /tmp/install_coolify.sh
+                  mode: '0755'
+                when: not coolify_installed.stat.exists
+
+              - name: Run Coolify installer
+                shell: /tmp/install_coolify.sh
+                args:
+                  creates: /data/coolify
+                when: not coolify_installed.stat.exists
+
+              - name: Wait for Coolify to start
+                wait_for:
+                  port: 8000
+                  delay: 30
+                  timeout: 300
+
+              - name: Display Coolify access information
+                debug:
+                  msg:
+                    - "✅ Coolify Installation Complete!"
+                    - "🌐 Access: http://{{ ansible_default_ipv4.address }}:8000"
+                    - "📝 Complete the initial setup wizard in your browser"
+    permissions: '0644'
+
+  - path: /opt/vibestack-ansible/README.md
+    content: |
+      # VibeStack Ansible Configuration
+
+      This directory contains Ansible playbooks for configuring your VibeStack servers.
+
+      ## Quick Start
+
+      ### Configure Coolify
+      ```bash
+      cd /opt/vibestack-ansible
+      ansible-playbook coolify/install.yml
+      ```
+
+      ### Access Coolify
+      After installation, open your browser to:
+      http://$(curl -s ifconfig.me):8000
+
+      ## What Gets Installed
+
+      - **Docker**: Container runtime for Coolify
+      - **Coolify**: Self-hosted application deployment platform
+      - **Initial Setup**: Ready for web-based configuration
+
+      ## Next Steps
+
+      1. Run the installation playbook above
+      2. Open Coolify in your browser
+      3. Complete the setup wizard (create admin user)
+      4. Start deploying applications!
+
+      ## Troubleshooting
+
+      - Check Docker: `sudo docker ps`
+      - Check Coolify logs: `sudo docker logs coolify`
+      - Restart Coolify: `cd /data/coolify && sudo docker compose restart`
+    permissions: '0644'
+
+runcmd:
+  - echo "Installing Ansible and collections..."
+  - pip3 install ansible
+  - pip3 install docker
+  - ansible-galaxy collection install community.general
+  - ansible-galaxy collection install community.docker
+  - ansible-galaxy collection install ansible.posix
+  - chown -R ubuntu:ubuntu /opt/vibestack-ansible
+  - echo "✅ VibeStack Ansible environment ready!"
+  - echo "📁 Configuration files: /opt/vibestack-ansible/"
+  - echo "🚀 Run: cd /opt/vibestack-ansible && ansible-playbook coolify/install.yml"
+
+final_message: |
+  VibeStack Coolify server is ready!
+
+  Next steps:
+  1. SSH into your server
+  2. Run: cd /opt/vibestack-ansible && ansible-playbook coolify/install.yml
+  3. Access Coolify at http://[YOUR-SERVER-IP]:8000
+
+  The server has been configured with Ansible and all necessary playbooks.
