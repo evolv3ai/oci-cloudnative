@@ -1,3 +1,0 @@
-Label,Tags,Address,Username,Port,Notes
-KASM-server,vibestack oci kasm,150.136.241.1,ubuntu,22,"KASM Workspaces server - VibeStack deployment (2 OCPUs, 12GB RAM, 60GB storage)"
-Coolify-server,vibestack oci coolify,132.145.209.240,ubuntu,22,"Coolify app platform server - VibeStack deployment (2 OCPUs, 12GB RAM, 100GB storage)"

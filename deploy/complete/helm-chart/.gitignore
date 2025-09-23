@@ -1,6 +1,0 @@
-*.tgz
-*.pem
-myvalues.yaml
-
-# lockfiles for requirements.yaml for dependent charts
-requirements.lock

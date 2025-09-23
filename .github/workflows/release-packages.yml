@@ -1,0 +1,200 @@
+name: Create VibeStack Release Packages
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag name for manual release'
+        required: true
+        default: 'v1.0.0'
+  push:
+    branches: [main]
+    paths: ['.github/workflows/release-packages.yml']
+
+jobs:
+  package-vibestack:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set release tag
+      id: release_tag
+      run: |
+        if [ "${{ github.event_name }}" = "release" ]; then
+          echo "tag_name=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
+        else
+          echo "tag_name=${{ github.event.inputs.tag_name }}" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Create VibeStack Full package
+      run: |
+        echo "📦 Creating VibeStack Full package (both servers)..."
+        # Create directory for VibeStack Full (both servers)
+        mkdir -p vibestack-full-package
+        cp deploy/full/*.tf vibestack-full-package/
+        cp deploy/full/schema.yaml vibestack-full-package/
+
+        # Create the zip file with vibestack- prefix for consistent naming
+        cd vibestack-full-package
+        zip -r ../vibestack-full.zip .
+        cd ..
+
+        echo "✅ Created vibestack-full.zip (will create 'vibestack-full' stack in Resource Manager)"
+        ls -la vibestack-full.zip
+
+    - name: Create VibeStack Coolify package
+      run: |
+        echo "📦 Creating VibeStack Coolify package..."
+        # Create directory for Coolify Only
+        mkdir -p vibestack-coolify-package
+        cp deploy/coolify/*.tf vibestack-coolify-package/
+        cp deploy/coolify/schema.yaml vibestack-coolify-package/
+
+        # Create the zip file with vibestack- prefix for consistent naming
+        cd vibestack-coolify-package
+        zip -r ../vibestack-coolify.zip .
+        cd ..
+
+        echo "✅ Created vibestack-coolify.zip (will create 'vibestack-coolify' stack in Resource Manager)"
+        ls -la vibestack-coolify.zip
+
+    - name: Create VibeStack KASM package
+      run: |
+        echo "📦 Creating VibeStack KASM package..."
+        # Create directory for KASM Only
+        mkdir -p vibestack-kasm-package
+        cp deploy/kasm/*.tf vibestack-kasm-package/
+        cp deploy/kasm/schema.yaml vibestack-kasm-package/
+
+        # Create the zip file with vibestack- prefix for consistent naming
+        cd vibestack-kasm-package
+        zip -r ../vibestack-kasm.zip .
+        cd ..
+
+        echo "✅ Created vibestack-kasm.zip (will create 'vibestack-kasm' stack in Resource Manager)"
+        ls -la vibestack-kasm.zip
+
+    - name: Show created packages
+      run: |
+        echo "📦 Created packages:"
+        ls -la *.zip
+
+        echo -e "\n📋 VibeStack Full contents:"
+        unzip -l vibestack-full.zip
+
+        echo -e "\n📋 VibeStack Coolify contents:"
+        unzip -l vibestack-coolify.zip
+
+        echo -e "\n📋 VibeStack KASM contents:"
+        unzip -l vibestack-kasm.zip
+
+    - name: Upload packages to release (if triggered by release)
+      if: github.event_name == 'release'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.event.release.tag_name }}
+        files: |
+          vibestack-full.zip
+          vibestack-coolify.zip
+          vibestack-kasm.zip
+
+    - name: Create manual release (if triggered manually)
+      if: github.event_name == 'workflow_dispatch'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.release_tag.outputs.tag_name }}
+        name: VibeStack Release ${{ steps.release_tag.outputs.tag_name }}
+        body: |
+          🚀 **VibeStack - Oracle Cloud Always Free Deployments**
+
+          Deploy KASM Workspaces and/or Coolify on Oracle Cloud Infrastructure using only Always Free tier resources.
+
+          ## 📦 Deployment Packages
+
+          | Package | Resources | Use Case |
+          |---------|-----------|----------|
+          | **vibestack-full.zip** | KASM + Coolify (4 OCPUs, 24GB RAM) | Full workspace and app platform |
+          | **vibestack-coolify.zip** | Coolify server (2 OCPUs, 12GB RAM) | Self-hosted applications only |
+          | **vibestack-kasm.zip** | KASM server (2 OCPUs, 12GB RAM) | Remote workspaces only |
+
+          ## 🚀 Deploy to Oracle Cloud
+
+          Click your preferred deployment option:
+
+          ### VibeStack Full (Both Servers)
+          [![Deploy to Oracle Cloud](https://oci-resourcemanager-plugin.plugins.oci.oraclecloud.com/latest/deploy-to-oracle-cloud.svg)](https://cloud.oracle.com/resourcemanager/stacks/create?zipUrl=https://github.com/${{ github.repository }}/releases/latest/download/vibestack-full.zip)
+
+          ### VibeStack Coolify
+          [![Deploy to Oracle Cloud](https://oci-resourcemanager-plugin.plugins.oci.oraclecloud.com/latest/deploy-to-oracle-cloud.svg)](https://cloud.oracle.com/resourcemanager/stacks/create?zipUrl=https://github.com/${{ github.repository }}/releases/latest/download/vibestack-coolify.zip)
+
+          ### VibeStack KASM
+          [![Deploy to Oracle Cloud](https://oci-resourcemanager-plugin.plugins.oci.oraclecloud.com/latest/deploy-to-oracle-cloud.svg)](https://cloud.oracle.com/resourcemanager/stacks/create?zipUrl=https://github.com/${{ github.repository }}/releases/latest/download/vibestack-kasm.zip)
+
+          ## 📋 Requirements
+          - OCI Always Free tier account
+          - SSH public key for server access
+          - Target region with A1 compute capacity
+
+          ## 🛠️ What's Included
+          - Custom compartment (you name it during deployment)
+          - Ubuntu 22.04 LTS (or Oracle Linux option)
+          - Public networking with security groups
+          - SSH access with your public key
+          - Always Free tier compatible - no charges
+
+          ## 📖 Documentation
+          See the [repository README](https://github.com/${{ github.repository }}) for detailed documentation and post-deployment tools.
+        files: |
+          vibestack-full.zip
+          vibestack-coolify.zip
+          vibestack-kasm.zip
+        draft: false
+        prerelease: false
+
+    - name: Verify package contents
+      run: |
+        echo "📦 Package Verification:"
+
+        REQUIRED_FILES=(
+          "providers.tf"
+          "variables.tf"
+          "outputs.tf"
+          "schema.yaml"
+          "compute.tf"
+          "network.tf"
+          "storage.tf"
+          "locals.tf"
+          "compartment.tf"
+          "datasources.tf"
+        )
+
+        for package in "vibestack-full.zip" "vibestack-coolify.zip" "vibestack-kasm.zip"; do
+          echo -e "\n✅ Checking $package:"
+          for file in "${REQUIRED_FILES[@]}"; do
+            if unzip -l "$package" | grep -q "$file"; then
+              echo "  ✓ $file"
+            else
+              echo "  ✗ $file (MISSING)"
+            fi
+          done
+        done
+
+    - name: Summary
+      run: |
+        echo "🎉 Successfully created VibeStack deployment packages!"
+        echo ""
+        echo "📦 Generated packages:"
+        echo "  • vibestack-full.zip - Complete VibeStack (KASM + Coolify)"
+        echo "  • vibestack-coolify.zip - VibeStack Coolify Only"
+        echo "  • vibestack-kasm.zip - VibeStack KASM Only"
+        echo ""
+        echo "🚀 These packages will create Resource Manager stacks named:"
+        echo "  • vibestack-full"
+        echo "  • vibestack-coolify"
+        echo "  • vibestack-kasm"
+        echo ""
+        echo "📋 Package sizes:"
+        ls -lh *.zip
