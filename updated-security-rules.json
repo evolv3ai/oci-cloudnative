@@ -1,0 +1,82 @@
+[
+  {
+    "description": "SSH",
+    "icmp-options": null,
+    "is-stateless": false,
+    "protocol": "6",
+    "source": "0.0.0.0/0",
+    "source-type": "CIDR_BLOCK",
+    "tcp-options": {
+      "destination-port-range": {
+        "max": 22,
+        "min": 22
+      },
+      "source-port-range": null
+    },
+    "udp-options": null
+  },
+  {
+    "description": "Coolify UI",
+    "icmp-options": null,
+    "is-stateless": false,
+    "protocol": "6",
+    "source": "0.0.0.0/0",
+    "source-type": "CIDR_BLOCK",
+    "tcp-options": {
+      "destination-port-range": {
+        "max": 3000,
+        "min": 3000
+      },
+      "source-port-range": null
+    },
+    "udp-options": null
+  },
+  {
+    "description": "Coolify Web Interface",
+    "icmp-options": null,
+    "is-stateless": false,
+    "protocol": "6",
+    "source": "0.0.0.0/0",
+    "source-type": "CIDR_BLOCK",
+    "tcp-options": {
+      "destination-port-range": {
+        "max": 8000,
+        "min": 8000
+      },
+      "source-port-range": null
+    },
+    "udp-options": null
+  },
+  {
+    "description": "HTTPS",
+    "icmp-options": null,
+    "is-stateless": false,
+    "protocol": "6",
+    "source": "0.0.0.0/0",
+    "source-type": "CIDR_BLOCK",
+    "tcp-options": {
+      "destination-port-range": {
+        "max": 443,
+        "min": 443
+      },
+      "source-port-range": null
+    },
+    "udp-options": null
+  },
+  {
+    "description": "HTTP",
+    "icmp-options": null,
+    "is-stateless": false,
+    "protocol": "6",
+    "source": "0.0.0.0/0",
+    "source-type": "CIDR_BLOCK",
+    "tcp-options": {
+      "destination-port-range": {
+        "max": 80,
+        "min": 80
+      },
+      "source-port-range": null
+    },
+    "udp-options": null
+  }
+]

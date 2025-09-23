@@ -248,5 +248,5 @@ if [ -n "$KASM_IP" ] && [ "$KASM_IP" != "null" ]; then
     echo "  • KASM:    https://$KASM_IP"
 fi
 if [ -n "$COOLIFY_IP" ] && [ "$COOLIFY_IP" != "null" ]; then
-    echo "  • Coolify: http://$COOLIFY_IP:3000"
+    echo "  • Coolify: http://$COOLIFY_IP:8000"
 fi

@@ -29,7 +29,7 @@ Choose one of these options if you want to deploy just a single server and keep 
 - **What**: Self-hosted application deployment platform (like Vercel/Netlify/Heroku)
 - **Resources**: VM.Standard.A1.Flex (2 OCPUs, 12GB RAM, 100GB storage)
 - **Perfect for**: Developers wanting their own PaaS for deploying Docker containers, static sites, and databases
-- **Ports**: 22 (SSH), 80/443 (HTTP/S), 3000 (Coolify UI)
+- **Ports**: 22 (SSH), 80/443 (HTTP/S), 8000 (Coolify Web Interface)
 
 ### VibeStack KASM
 - **What**: Browser-based remote workspace server with containerized desktops

@@ -60,7 +60,7 @@ Target: Internet Gateway (free-tier-igw)
 | 0.0.0.0/0 | TCP | 22 | SSH Access |
 | 0.0.0.0/0 | TCP | 80 | HTTP |
 | 0.0.0.0/0 | TCP | 443 | HTTPS |
-| 0.0.0.0/0 | TCP | 3000 | Coolify UI (adjust as needed) |
+| 0.0.0.0/0 | TCP | 8000 | Coolify Web Interface |
 | 0.0.0.0/0 | TCP | Custom | KASM-specific ports |
 
 #### Egress Rules

@@ -96,7 +96,7 @@ The script automatically detects which servers are deployed:
 
 ### Coolify Server
 - **Purpose**: Self-hosted application deployment platform
-- **Access**: `http://[COOLIFY-IP]:3000`
+- **Access**: `http://[COOLIFY-IP]:8000`
 - **Resources**: 2 OCPUs, 12GB RAM, 100GB storage
 - **Default Login**: Setup required on first visit
 

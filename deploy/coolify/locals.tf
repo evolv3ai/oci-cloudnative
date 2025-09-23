@@ -34,8 +34,8 @@ locals {
     ],
     var.deploy_coolify ? [
       {
-        port        = 3000
-        description = "Coolify UI"
+        port        = 8000
+        description = "Coolify Web Interface"
       }
     ] : [],
     var.deploy_kasm ? [for p in var.kasm_custom_tcp_ports : {

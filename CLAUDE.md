@@ -25,7 +25,7 @@ The repository uses a **single configurable Terraform module** that can deploy d
 | **KASM Server** | VM.Standard.A1.Flex (2 OCPUs, 12GB RAM, 60GB block volume) | Remote workspace hosting with KASM Workspaces |
 | **Coolify Server** | VM.Standard.A1.Flex (2 OCPUs, 12GB RAM, 100GB block volume) | Self-hosted application platform |
 | **Shared Network** | VCN (10.0.0.0/16), Public Subnet (10.0.1.0/24), Internet Gateway | Network infrastructure with public access |
-| **Security** | TCP ports 22/80/443/3000 + configurable KASM ports | Controlled access with SSH, HTTP(S), and application ports |
+| **Security** | TCP ports 22/80/443/8000 + configurable KASM ports | Controlled access with SSH, HTTP(S), and application ports |
 
 **Resource Utilization**: 4/4 OCPUs (100%), 24/24GB RAM (100%), 160/200GB storage (80%)
 
@@ -67,7 +67,7 @@ terraform output
 **Key Terraform variables:**
 - `availability_domain`: Target AD with A1 capacity
 - `assign_public_ip`: Whether to assign public IPs (default: true)
-- `kasm_custom_tcp_ports`: Additional ports for KASM (beyond 22/80/443/3000)
+- `kasm_custom_tcp_ports`: Additional ports for KASM (beyond 22/80/443)
 
 **Destroy resources:**
 ```bash
@@ -140,7 +140,7 @@ terraform destroy
 
 **Network Security:**
 - **Public access**: Enabled by default for both servers
-- **Inbound ports**: 22 (SSH), 80 (HTTP), 443 (HTTPS), 3000 (Coolify UI)
+- **Inbound ports**: 22 (SSH), 80 (HTTP), 443 (HTTPS), 8000 (Coolify Web Interface)
 - **KASM ports**: Configurable via `kasm_custom_tcp_ports` variable
 - **Outbound**: All traffic permitted for updates/packages
 

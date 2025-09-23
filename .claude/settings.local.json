@@ -16,7 +16,19 @@
       "Bash(ping:*)",
       "Read(//tmp/SnagitTemp/**)",
       "Bash(gh release view:*)",
-      "Bash(./scripts/manage-deployment-logs.sh import-from-log:*)"
+      "Bash(./scripts/manage-deployment-logs.sh import-from-log:*)",
+      "Read(//d/vibestack-existing/**)",
+      "Read(//n/Dropbox/07_Dev/ansible/playbooks/**)",
+      "Bash(ansible:*)",
+      "Bash(ssh:*)",
+      "Read(//n/Dropbox/Prog/SSH/termius/my-oci-devops/**)",
+      "Bash(chmod:*)",
+      "Read(//c/Users/Owner/.ssh/**)",
+      "Bash(terraform output:*)",
+      "Bash(find:*)",
+      "Bash(powershell.exe:*)",
+      "Bash(scp:*)",
+      "Bash(oci network security-list get:*)"
     ],
     "deny": [],
     "ask": []

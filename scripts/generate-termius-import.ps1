@@ -308,5 +308,5 @@ if ($kasmIp) {
     Write-Host "  • KASM:    https://$kasmIp"
 }
 if ($coolifyIp) {
-    Write-Host "  • Coolify: http://$coolifyIp:3000"
+    Write-Host "  • Coolify: http://$coolifyIp:8000"
 }
