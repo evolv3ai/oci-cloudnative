@@ -24,18 +24,18 @@ write_files:
       - name: Install Coolify
         hosts: localhost
         become: yes
-        connection: local
+        gather_facts: yes
         vars:
-          coolify_version: "latest"
-          docker_version: "24.0"
+          docker_arch: "{{ 'arm64' if ansible_architecture == 'aarch64' else 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}"
 
         tasks:
           - name: System information
             debug:
               msg:
                 - "🚀 Coolify Installation"
-                - "📋 Host: {{ inventory_hostname }}"
-                - "🏗️ Version: {{ coolify_version }}"
+                - "📋 Host: {{ ansible_hostname }}"
+                - "🏗️ Architecture: {{ ansible_architecture }} (Docker: {{ docker_arch }})"
+                - "💿 Distribution: {{ ansible_distribution }} {{ ansible_distribution_version }}"
 
           - name: Update system packages
             apt:
@@ -76,7 +76,7 @@ write_files:
 
               - name: Add Docker repository
                 apt_repository:
-                  repo: "deb [arch={{ ansible_architecture }}] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+                  repo: "deb [arch={{ docker_arch }}] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
                   state: present
                 when: docker_check.rc != 0
 
