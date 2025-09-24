@@ -26,6 +26,7 @@ variableGroups:
       - coolify_ocpus
       - coolify_memory_in_gbs
       - coolify_block_volume_size_in_gbs
+      - coolify_custom_tcp_ports
       - assign_public_ip
 
 variables:
@@ -104,6 +105,12 @@ variables:
     description: "Size of the block volume attached to the Coolify server."
     minimum: 50
     default: 100
+  coolify_custom_tcp_ports:
+    type: array
+    title: "Additional Coolify TCP ports"
+    description: "Extra TCP ports that should be opened to the internet for the Coolify server."
+    items:
+      type: integer
   assign_public_ip:
     type: boolean
     title: "Assign public IP addresses"
