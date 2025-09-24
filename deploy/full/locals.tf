@@ -36,6 +36,14 @@ locals {
       {
         port        = 8000
         description = "Coolify Web Interface"
+      },
+      {
+        port        = 6001
+        description = "Coolify Real-time Communications"
+      },
+      {
+        port        = 6002
+        description = "Coolify Terminal Access"
       }
     ] : [],
     var.deploy_kasm ? [for p in var.kasm_custom_tcp_ports : {

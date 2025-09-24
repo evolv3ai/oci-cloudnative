@@ -29,7 +29,8 @@
       "Bash(powershell.exe:*)",
       "Bash(scp:*)",
       "Bash(oci network security-list get:*)",
-      "Bash(git tag:*)"
+      "Bash(git tag:*)",
+      "Read(//c/Users/Owner/**)"
     ],
     "deny": [],
     "ask": []
