@@ -214,14 +214,14 @@ runcmd:
   - systemctl restart systemd-resolved
   - sleep 5
   - echo 'Installing Ansible and dependencies...'
-  - pip3 install --upgrade pip
-  - pip3 install ansible
-  - pip3 install docker
+  - pip3 install --upgrade pip || apt-get update && apt-get install -y python3-pip
+  - pip3 install ansible || pip3 install --break-system-packages ansible
+  - pip3 install docker || pip3 install --break-system-packages docker
   - sleep 10
   - echo 'Installing Ansible collections...'
-  - /usr/local/bin/ansible-galaxy collection install community.general --force
-  - /usr/local/bin/ansible-galaxy collection install community.docker --force
-  - /usr/local/bin/ansible-galaxy collection install ansible.posix --force
+  - /usr/local/bin/ansible-galaxy collection install community.general --force || ansible-galaxy collection install community.general --force
+  - /usr/local/bin/ansible-galaxy collection install community.docker --force || ansible-galaxy collection install community.docker --force
+  - /usr/local/bin/ansible-galaxy collection install ansible.posix --force || ansible-galaxy collection install ansible.posix --force
   - chown -R ubuntu:ubuntu /opt/vibestack-ansible
   - echo 'Ansible environment ready'
   - echo 'Configuration files in /opt/vibestack-ansible/'
