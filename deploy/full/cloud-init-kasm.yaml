@@ -249,20 +249,29 @@ write_files:
     permissions: '0644'
 
 runcmd:
+  - echo 'Configuring UFW firewall for KASM...'
+  - ufw allow 22/tcp comment 'SSH'
+  - ufw allow 80/tcp comment 'HTTP'
+  - ufw allow 443/tcp comment 'HTTPS'
+  - ufw allow 3000/tcp comment 'KASM Workspaces UI'
+  - ufw allow from 172.17.0.0/16 comment 'Docker network'
+  - ufw allow from 172.18.0.0/16 comment 'Docker network'
+  - ufw --force enable
+  - echo 'UFW firewall configured'
   - echo 'Configuring DNS resolution...'
   - echo 'nameserver 8.8.8.8' | tee /etc/resolv.conf
   - echo 'nameserver 1.1.1.1' | tee -a /etc/resolv.conf
   - systemctl restart systemd-resolved
   - sleep 5
   - echo 'Installing Ansible and dependencies...'
-  - pip3 install --upgrade pip
-  - pip3 install ansible
-  - pip3 install docker
+  - pip3 install --upgrade pip || apt-get update && apt-get install -y python3-pip
+  - pip3 install ansible || pip3 install --break-system-packages ansible
+  - pip3 install docker || pip3 install --break-system-packages docker
   - sleep 10
   - echo 'Installing Ansible collections...'
-  - /usr/local/bin/ansible-galaxy collection install community.general --force
-  - /usr/local/bin/ansible-galaxy collection install community.docker --force
-  - /usr/local/bin/ansible-galaxy collection install ansible.posix --force
+  - /usr/local/bin/ansible-galaxy collection install community.general --force || ansible-galaxy collection install community.general --force
+  - /usr/local/bin/ansible-galaxy collection install community.docker --force || ansible-galaxy collection install community.docker --force
+  - /usr/local/bin/ansible-galaxy collection install ansible.posix --force || ansible-galaxy collection install ansible.posix --force
   - chown -R ubuntu:ubuntu /opt/vibestack-ansible
   - echo 'Ansible environment ready'
   - echo 'Configuration files in /opt/vibestack-ansible/'
