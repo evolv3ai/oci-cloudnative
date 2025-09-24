@@ -253,12 +253,16 @@ runcmd:
   - echo 'nameserver 8.8.8.8' | tee /etc/resolv.conf
   - echo 'nameserver 1.1.1.1' | tee -a /etc/resolv.conf
   - systemctl restart systemd-resolved
-  - echo 'Installing Ansible and collections...'
+  - sleep 5
+  - echo 'Installing Ansible and dependencies...'
+  - pip3 install --upgrade pip
   - pip3 install ansible
   - pip3 install docker
-  - ansible-galaxy collection install community.general
-  - ansible-galaxy collection install community.docker
-  - ansible-galaxy collection install ansible.posix
+  - sleep 10
+  - echo 'Installing Ansible collections...'
+  - /usr/local/bin/ansible-galaxy collection install community.general --force
+  - /usr/local/bin/ansible-galaxy collection install community.docker --force
+  - /usr/local/bin/ansible-galaxy collection install ansible.posix --force
   - chown -R ubuntu:ubuntu /opt/vibestack-ansible
   - echo 'Ansible environment ready'
   - echo 'Configuration files in /opt/vibestack-ansible/'
