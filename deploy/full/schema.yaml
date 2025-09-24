@@ -33,10 +33,6 @@ variableGroups:
       - coolify_memory_in_gbs
       - coolify_block_volume_size_in_gbs
       - assign_public_ip
-  - title: "Operating system"
-    variables:
-      - image_operating_system
-      - image_operating_system_version
 
 variables:
   tenancy_ocid:
@@ -144,21 +140,17 @@ variables:
     description: "Assign public IPv4 addresses to both compute instances."
     default: true
   image_operating_system:
-    type: enum
+    type: string
     title: "Operating system"
     description: "Operating system to use for both servers."
     default: "Canonical Ubuntu"
-    enum:
-      - "Canonical Ubuntu"
-      - "Oracle Linux"
-    enumDisplayName:
-      - "Ubuntu"
-      - "Oracle Linux"
+    visible: false
   image_operating_system_version:
     type: string
     title: "Operating system version"
     description: "Version of the operating system (22.04 for Ubuntu, 8 or 9 for Oracle Linux)."
     default: "22.04"
+    visible: false
   deploy_kasm:
     type: boolean
     title: "Deploy KASM server"
