@@ -84,30 +84,6 @@ variable "custom_image_ocid" {
   default     = ""
 }
 
-variable "kasm_ocpus" {
-  description = "Number of OCPUs allocated to the KASM server."
-  type        = number
-  default     = 2
-}
-
-variable "kasm_memory_in_gbs" {
-  description = "Memory (in GB) allocated to the KASM server."
-  type        = number
-  default     = 12
-}
-
-variable "kasm_block_volume_size_in_gbs" {
-  description = "Size of the additional block volume attached to the KASM server."
-  type        = number
-  default     = 60
-}
-
-variable "kasm_custom_tcp_ports" {
-  description = "Additional TCP ports that should be opened to the KASM server."
-  type        = list(number)
-  default     = []
-}
-
 variable "coolify_ocpus" {
   description = "Number of OCPUs allocated to the Coolify server."
   type        = number
@@ -126,6 +102,12 @@ variable "coolify_block_volume_size_in_gbs" {
   default     = 100
 }
 
+variable "coolify_custom_tcp_ports" {
+  description = "Additional TCP ports that should be opened to the Coolify server."
+  type        = list(number)
+  default     = []
+}
+
 variable "assign_public_ip" {
   description = "Assign public IPv4 addresses to the compute instances."
   type        = bool
@@ -135,7 +117,7 @@ variable "assign_public_ip" {
 variable "deploy_kasm" {
   description = "Deploy KASM Workspaces server."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "deploy_coolify" {

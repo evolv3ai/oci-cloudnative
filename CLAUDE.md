@@ -150,6 +150,7 @@ terraform output
 - `availability_domain`: Target AD with A1 capacity
 - `assign_public_ip`: Whether to assign public IPs (default: true)
 - `kasm_custom_tcp_ports`: Additional ports for KASM (beyond 22/80/443)
+- `coolify_custom_tcp_ports`: Additional ports for Coolify (beyond 22/80/443)
 
 **Destroy resources:**
 ```bash

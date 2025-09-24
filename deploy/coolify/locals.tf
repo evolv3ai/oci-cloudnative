@@ -11,10 +11,8 @@ locals {
   vcn_dns_label    = substr(replace("freetiervcn${replace(local.suffix, "-", "")}", "_", ""), 0, 15)
   subnet_dns_label = substr(replace("publicsubnet${replace(local.suffix, "-", "")}", "_", ""), 0, 15)
 
-  kasm_display_name    = "KASM-server${local.suffix}"
   coolify_display_name = "coolify-server${local.suffix}"
 
-  kasm_hostname    = substr(lower(replace("kasm${local.suffix}", "_", "-")), 0, 63)
   coolify_hostname = substr(lower(replace("coolify${local.suffix}", "_", "-")), 0, 63)
 
   ingress_tcp_ports = concat(
@@ -46,9 +44,9 @@ locals {
         description = "Coolify Terminal Access"
       }
     ] : [],
-    var.deploy_kasm ? [for p in var.kasm_custom_tcp_ports : {
+    var.deploy_coolify ? [for p in var.coolify_custom_tcp_ports : {
       port        = p
-      description = "KASM custom port ${p}"
+      description = "Coolify custom port ${p}"
     }] : []
   )
 

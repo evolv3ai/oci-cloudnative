@@ -17,18 +17,6 @@ output "network" {
   }
 }
 
-output "kasm_server" {
-  value = var.deploy_kasm ? {
-    display_name   = oci_core_instance.kasm[0].display_name
-    public_ip      = oci_core_instance.kasm[0].public_ip
-    private_ip     = oci_core_instance.kasm[0].private_ip
-    block_volume   = oci_core_volume.kasm_data[0].id
-    block_size_gb  = var.kasm_block_volume_size_in_gbs
-    ocpus          = var.kasm_ocpus
-    memory_in_gbs  = var.kasm_memory_in_gbs
-  } : null
-}
-
 output "coolify_server" {
   value = var.deploy_coolify ? {
     display_name   = oci_core_instance.coolify[0].display_name

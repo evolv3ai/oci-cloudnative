@@ -108,24 +108,6 @@ variable "kasm_custom_tcp_ports" {
   default     = []
 }
 
-variable "coolify_ocpus" {
-  description = "Number of OCPUs allocated to the Coolify server."
-  type        = number
-  default     = 2
-}
-
-variable "coolify_memory_in_gbs" {
-  description = "Memory (in GB) allocated to the Coolify server."
-  type        = number
-  default     = 12
-}
-
-variable "coolify_block_volume_size_in_gbs" {
-  description = "Size of the additional block volume attached to the Coolify server."
-  type        = number
-  default     = 100
-}
-
 variable "assign_public_ip" {
   description = "Assign public IPv4 addresses to the compute instances."
   type        = bool

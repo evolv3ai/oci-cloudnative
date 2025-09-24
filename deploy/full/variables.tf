@@ -126,6 +126,12 @@ variable "coolify_block_volume_size_in_gbs" {
   default     = 100
 }
 
+variable "coolify_custom_tcp_ports" {
+  description = "Additional TCP ports that should be opened to the Coolify server."
+  type        = list(number)
+  default     = []
+}
+
 variable "assign_public_ip" {
   description = "Assign public IPv4 addresses to the compute instances."
   type        = bool

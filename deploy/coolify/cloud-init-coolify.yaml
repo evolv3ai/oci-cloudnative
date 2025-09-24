@@ -133,11 +133,19 @@ write_files:
                   delay: 30
                   timeout: 300
 
+              - name: Get public IP address
+                uri:
+                  url: http://ifconfig.me/ip
+                  method: GET
+                  return_content: yes
+                register: public_ip
+                ignore_errors: yes
+
               - name: Display Coolify access information
                 debug:
                   msg:
                     - "✅ Coolify Installation Complete!"
-                    - "🌐 Access: http://{{ ansible_default_ipv4.address }}:8000"
+                    - "🌐 Access: http://{{ public_ip.content | trim if public_ip.content is defined else ansible_default_ipv4.address }}:8000"
                     - "📝 Complete the initial setup wizard in your browser"
     permissions: '0644'
 
