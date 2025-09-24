@@ -180,6 +180,26 @@ write_files:
     permissions: '0644'
 
 runcmd:
+  - echo 'Configuring root access for Coolify...'
+  - sed -i 's/^#*PermitRootLogin.*/PermitRootLogin without-password/' /etc/ssh/sshd_config
+  - systemctl restart sshd
+  - mkdir -p /root/.ssh
+  - chmod 700 /root/.ssh
+  - cp /home/ubuntu/.ssh/authorized_keys /root/.ssh/authorized_keys
+  - chmod 600 /root/.ssh/authorized_keys
+  - chown -R root:root /root/.ssh
+  - echo 'Root SSH access configured'
+  - echo 'Configuring UFW firewall for Coolify...'
+  - ufw allow 22/tcp comment 'SSH'
+  - ufw allow 80/tcp comment 'HTTP'
+  - ufw allow 443/tcp comment 'HTTPS'
+  - ufw allow 8000/tcp comment 'Coolify Web Interface'
+  - ufw allow 6001/tcp comment 'Coolify Real-time Communications'
+  - ufw allow 6002/tcp comment 'Coolify Terminal Access'
+  - ufw allow from 172.17.0.0/16 comment 'Docker network'
+  - ufw allow from 172.18.0.0/16 comment 'Docker network'
+  - ufw --force enable
+  - echo 'UFW firewall configured'
   - echo 'Configuring DNS resolution...'
   - echo 'nameserver 8.8.8.8' | tee /etc/resolv.conf
   - echo 'nameserver 1.1.1.1' | tee -a /etc/resolv.conf

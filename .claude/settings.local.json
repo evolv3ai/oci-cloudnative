@@ -30,7 +30,8 @@
       "Bash(scp:*)",
       "Bash(oci network security-list get:*)",
       "Bash(git tag:*)",
-      "Read(//c/Users/Owner/**)"
+      "Read(//c/Users/Owner/**)",
+      "WebFetch(domain:coolify.io)"
     ],
     "deny": [],
     "ask": []
