@@ -41,6 +41,88 @@ Each package sets these variables appropriately:
 - **VibeStack Coolify**: `deploy_kasm = false`, `deploy_coolify = true`
 - **VibeStack KASM**: `deploy_kasm = true`, `deploy_coolify = false`
 
+## Ansible Integration
+
+**IMPORTANT**: Ansible is automatically installed during deployment via cloud-init scripts embedded in the Terraform configuration.
+
+### How Ansible Integration Works
+
+1. **Terraform Deployment**: Each compute instance includes cloud-init user_data:
+   ```terraform
+   metadata = {
+     ssh_authorized_keys = var.ssh_authorized_keys
+     user_data = base64encode(file("${path.module}/cloud-init-coolify.yaml"))
+   }
+   ```
+
+2. **Cloud-Init Execution**: During instance boot, cloud-init runs and:
+   - Installs Python3, pip, and system dependencies
+   - Installs Ansible via pip3 with proper timing delays
+   - Installs Ansible collections (community.general, community.docker, ansible.posix)
+   - Creates Ansible playbooks in `/opt/vibestack-ansible/`
+   - Sets proper permissions for ubuntu user
+
+3. **Post-Deployment Configuration**: After deployment, SSH into servers and run:
+   ```bash
+   cd /opt/vibestack-ansible
+   ansible-playbook coolify/install.yml  # For Coolify server
+   ansible-playbook kasm/install.yml     # For KASM server
+   ```
+
+### Current Ansible Fixes (v1.1.6)
+
+- **Proper timing**: Added sleep delays between pip install and ansible-galaxy commands
+- **Explicit paths**: Uses `/usr/local/bin/ansible-galaxy` instead of PATH resolution
+- **Force installation**: Adds `--force` flag to ensure collections install correctly
+- **DNS configuration**: Explicit DNS setup for reliable package downloads
+- **ARM64 Docker support**: Fixed architecture mapping (aarch64 → arm64) for Docker repository
+
+### Troubleshooting Ansible
+
+If Ansible isn't available after deployment (older releases):
+```bash
+sudo pip3 install --upgrade pip
+sudo pip3 install ansible
+sudo pip3 install docker
+sudo /usr/local/bin/ansible-galaxy collection install community.general --force
+sudo /usr/local/bin/ansible-galaxy collection install community.docker --force
+sudo /usr/local/bin/ansible-galaxy collection install ansible.posix --force
+```
+
+## Release Process
+
+**CRITICAL**: Deploy buttons in README.md pull from GitHub releases, not git tags. Follow this process:
+
+### Creating Production Releases
+
+1. **Make code changes** and test thoroughly
+2. **Commit and push** to main branch
+3. **Create GitHub release** (not just git tag):
+   ```bash
+   gh release create vibestack-v1.X.Y \
+     --title "VibeStack v1.X.Y: Brief Description" \
+     --notes "Detailed release notes here"
+   ```
+
+4. **Verify package creation**: GitHub Actions automatically builds deployment packages:
+   ```bash
+   gh run list --limit 3  # Check workflow status
+   gh release view vibestack-v1.X.Y --json assets --jq '.assets[].name'
+   ```
+
+### Release Naming Convention
+
+- **Format**: `vibestack-v1.X.Y` (NOT just `v1.X.Y`)
+- **Examples**: `vibestack-v1.1.6`, `vibestack-v1.2.0`
+- **Workflow trigger**: Only `vibestack-v*` releases trigger package building
+
+### Deploy Button Mechanism
+
+README.md buttons point to: `releases/latest/download/vibestack-{package}.zip`
+- This automatically uses the most recent `vibestack-v*` release
+- Packages are built by GitHub Actions when release is published
+- Each release includes: `vibestack-full.zip`, `vibestack-coolify.zip`, `vibestack-kasm.zip`
+
 ## Development Commands
 
 ### VibeStack Terraform Deployment (Primary)
