@@ -3,7 +3,7 @@ data "oci_identity_availability_domains" "ads" {
 }
 
 locals {
-  selected_ad      = var.availability_domain != "" ? var.availability_domain : try(data.oci_identity_availability_domains.ads.availability_domains[0].name, "")
+  selected_ad      = trimspace(var.availability_domain != "" ? var.availability_domain : try(data.oci_identity_availability_domains.ads.availability_domains[0].name, ""))
   use_image_lookup = var.custom_image_ocid == ""
 }
 
