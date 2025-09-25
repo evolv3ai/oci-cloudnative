@@ -89,6 +89,17 @@ sudo /usr/local/bin/ansible-galaxy collection install community.docker --force
 sudo /usr/local/bin/ansible-galaxy collection install ansible.posix --force
 ```
 
+### Testing Ansible Without Full Rebuilds
+
+For rapid Ansible development, use the test workflow:
+
+1. **Deploy once** with Ansible disabled in cloud-init
+2. **Sync changes** via rsync to running instance
+3. **Test repeatedly** without destroying infrastructure
+4. **See TEST_WORKFLOW.md** for detailed instructions
+
+This avoids the slow cycle of: commit → release → deploy → test
+
 ## Release Process
 
 **CRITICAL**: Deploy buttons in README.md pull from GitHub releases, not git tags. Follow this process:
@@ -210,6 +221,26 @@ terraform destroy
 - **Terraform validation**: `terraform plan` and `terraform validate` in any deployment directory
 - **Package creation**: GitHub Actions workflow automatically creates deployment packages
 
+## Development Testing
+
+### Ansible Testing Mode
+- Use test-ansible branch for development
+- Comment out auto-execution in cloud-init
+- Sync files directly: rsync -avz ./ansible/ ubuntu@<IP>:/opt/vibestack-ansible/
+- Test without rebuilding: terraform apply once, iterate many times
+
+### Local Validation
+```bash
+# Check Ansible syntax
+ansible-playbook --syntax-check ansible/kasm/install.yml
+
+# Validate YAML
+yamllint deploy/kasm/*.yaml
+
+# Test locally with Docker (ARM64)
+docker run -it --privileged ubuntu:22.04
+```
+
 ## Key Configuration
 
 ### VibeStack Configuration
@@ -256,7 +287,11 @@ scripts/
 ├── manage-deployment-logs.sh       # Secure log management (Bash)
 ├── manage-deployment-logs.ps1      # Secure log management (PowerShell)
 ├── cleanup-compartment.sh          # Complete resource cleanup script
+├── sync-ansible.sh                 # Quick Ansible sync for testing
 └── test-csv-generation.sh          # CSV format testing utility
+
+TEST_WORKFLOW.md                    # KASM testing workflow guide
+TEST_WORKFLOW_COOLIFY.md            # Coolify testing workflow guide
 
 docs/
 ├── oci-vibestack-recommended-setup.md

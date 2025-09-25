@@ -31,7 +31,8 @@
       "Bash(oci network security-list get:*)",
       "Bash(git tag:*)",
       "Read(//c/Users/Owner/**)",
-      "WebFetch(domain:coolify.io)"
+      "WebFetch(domain:coolify.io)",
+      "Bash(oci:*)"
     ],
     "deny": [],
     "ask": []
