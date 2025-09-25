@@ -32,3 +32,13 @@ output "kasm_server" {
 output "security_list_ingress_ports" {
   value = [for rule in local.ingress_tcp_ports : rule.port]
 }
+
+output "kasm_setup_instructions" {
+  value = var.deploy_kasm ? {
+    step1 = "SSH to server: ssh -i <your-key> ubuntu@${oci_core_instance.kasm[0].public_ip}"
+    step2 = "Run installation: cd /opt/vibestack-ansible && sudo ansible-playbook kasm/install.yml"
+    step3 = "SAVE THE PASSWORDS shown in the output!"
+    step4 = "Access KASM at: https://${oci_core_instance.kasm[0].public_ip}"
+    step5 = "Credentials file: /opt/kasm/credentials.txt"
+  } : null
+}

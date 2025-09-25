@@ -105,7 +105,7 @@ variable "kasm_block_volume_size_in_gbs" {
 variable "kasm_custom_tcp_ports" {
   description = "Additional TCP ports that should be opened to the KASM server."
   type        = list(number)
-  default     = []
+  default     = [3000, 3001, 3002, 3003, 3004]  # KASM session ports
 }
 
 variable "assign_public_ip" {

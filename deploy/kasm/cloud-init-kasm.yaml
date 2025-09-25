@@ -30,8 +30,17 @@ write_files:
           kasm_version: "1.17.0"
           swap_file: "/swapfile"
           swap_size: "2G"
+          # Auto-generate secure passwords
+          kasm_admin_password: "{{ lookup('password', '/tmp/kasm_admin_pass length=16 chars=ascii_letters,digits,!@#$%^&*()') }}"
+          kasm_user_password: "{{ lookup('password', '/tmp/kasm_user_pass length=16 chars=ascii_letters,digits,!@#$%^&*()') }}"
 
         tasks:
+          - name: Get external IP address
+            shell: curl -s https://ifconfig.me
+            register: external_ip
+            retries: 3
+            delay: 5
+
           - name: System information
             debug:
               msg:
@@ -39,6 +48,7 @@ write_files:
                 - "📋 Host: {{ ansible_hostname }}"
                 - "🏗️ Architecture: {{ ansible_architecture }} (Docker: {{ docker_arch }})"
                 - "💿 Distribution: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+                - "🌐 External IP: {{ external_ip.stdout }}"
 
           - name: Update system packages
             apt:
@@ -168,7 +178,34 @@ write_files:
                   enabled: yes
                   state: started
 
-          - name: Download and install KASM Workspaces
+              - name: Optimize Docker for ARM64
+                copy:
+                  content: |
+                    {
+                      "log-driver": "json-file",
+                      "log-opts": {
+                        "max-size": "10m",
+                        "max-file": "3"
+                      },
+                      "storage-driver": "overlay2",
+                      "default-address-pools": [
+                        {
+                          "base": "172.17.0.0/16",
+                          "size": 24
+                        }
+                      ]
+                    }
+                  dest: /etc/docker/daemon.json
+                  mode: '0644'
+                notify: restart docker
+
+              - name: Restart Docker if config changed
+                systemd:
+                  name: docker
+                  state: restarted
+                when: docker_check.rc == 0
+
+          - name: Download and install KASM Workspaces (Offline Method)
             block:
               - name: Create KASM directory
                 file:
@@ -178,9 +215,30 @@ write_files:
 
               - name: Download KASM installer
                 get_url:
-                  url: "https://kasm-static-content.s3.amazonaws.com/kasm_release_{{ kasm_version }}.tar.gz"
+                  url: "https://kasm-static-content.s3.amazonaws.com/kasm_release_{{ kasm_version }}.7f020d.tar.gz"
                   dest: /tmp/kasm_install/kasm_release.tar.gz
                   mode: '0644'
+
+              - name: Download KASM service images for ARM64
+                get_url:
+                  url: "https://kasm-static-content.s3.amazonaws.com/kasm_release_service_images_{{ docker_arch }}_{{ kasm_version }}.7f020d.tar.gz"
+                  dest: /tmp/kasm_install/kasm_release_service_images.tar.gz
+                  mode: '0644'
+                when: docker_arch == 'arm64'
+
+              - name: Download KASM workspace images for ARM64
+                get_url:
+                  url: "https://kasm-static-content.s3.amazonaws.com/kasm_release_workspace_images_{{ docker_arch }}_{{ kasm_version }}.7f020d.tar.gz"
+                  dest: /tmp/kasm_install/kasm_release_workspace_images.tar.gz
+                  mode: '0644'
+                when: docker_arch == 'arm64'
+
+              - name: Download KASM plugin images for ARM64
+                get_url:
+                  url: "https://kasm-static-content.s3.amazonaws.com/kasm_release_plugin_images_{{ docker_arch }}_{{ kasm_version }}.7f020d.tar.gz"
+                  dest: /tmp/kasm_install/kasm_release_plugin_images.tar.gz
+                  mode: '0644'
+                when: docker_arch == 'arm64'
 
               - name: Extract KASM installer
                 unarchive:
@@ -188,12 +246,28 @@ write_files:
                   dest: /tmp/kasm_install
                   remote_src: yes
 
-              - name: Run KASM installation
+              - name: Run KASM offline installation for ARM64
                 shell: |
                   cd /tmp/kasm_install/kasm_release
-                  ./install.sh --accept-eula --swap-size {{ swap_size }}
+                  ./install.sh --accept-eula --swap-size {{ swap_size }} \
+                    --admin-password "{{ kasm_admin_password }}" \
+                    --user-password "{{ kasm_user_password }}" \
+                    --offline-workspaces /tmp/kasm_install/kasm_release_workspace_images.tar.gz \
+                    --offline-service /tmp/kasm_install/kasm_release_service_images.tar.gz \
+                    --offline-network-plugin /tmp/kasm_install/kasm_release_plugin_images.tar.gz
                 args:
                   creates: /opt/kasm/current
+                when: docker_arch == 'arm64'
+
+              - name: Run KASM standard installation for AMD64
+                shell: |
+                  cd /tmp/kasm_install/kasm_release
+                  ./install.sh --accept-eula --swap-size {{ swap_size }} \
+                    --admin-password "{{ kasm_admin_password }}" \
+                    --user-password "{{ kasm_user_password }}"
+                args:
+                  creates: /opt/kasm/current
+                when: docker_arch == 'amd64'
 
               - name: Get KASM admin credentials
                 slurp:
@@ -204,10 +278,108 @@ write_files:
               - name: Display KASM access information
                 debug:
                   msg:
+                    - "====================================================="
                     - "✅ KASM Installation Complete!"
-                    - "Access URL: https://{{ ansible_default_ipv4.address }}"
-                    - "Admin credentials can be found in: /opt/kasm/current/conf/app/admin_creds.txt"
+                    - "====================================================="
+                    - "🌐 External Access URL: https://{{ external_ip.stdout }}"
+                    - "🌐 Internal Access URL: https://{{ ansible_default_ipv4.address }}"
+                    - "====================================================="
+                    - "🔐 SAVE THESE CREDENTIALS SECURELY:"
+                    - "👤 Admin Username: admin@kasm.local"
+                    - "🔑 Admin Password: {{ kasm_admin_password }}"
+                    - "-----------------------------------------------------"
+                    - "👤 User Username: user@kasm.local"
+                    - "🔑 User Password: {{ kasm_user_password }}"
+                    - "====================================================="
+                    - "📁 Credentials also saved to: /opt/kasm/credentials.txt"
+                    - "⚠️  Change these passwords after first login!"
+
+              - name: Save credentials to file
+                copy:
+                  content: |
+                    =====================================================
+                    KASM Workspaces Access Credentials
+                    Generated: {{ ansible_date_time.iso8601 }}
+                    =====================================================
+                    
+                    External Access: https://{{ external_ip.stdout }}
+                    Internal Access: https://{{ ansible_default_ipv4.address }}
+                    
+                    Admin Credentials:
+                    -----------------
+                    Username: admin@kasm.local
+                    Password: {{ kasm_admin_password }}
+                    
+                    User Credentials:
+                    ----------------
+                    Username: user@kasm.local
+                    Password: {{ kasm_user_password }}
+                    
+                    =====================================================
+                    IMPORTANT: Change these passwords after first login!
+                    To change: Login > Admin > Users > Edit User
+                    =====================================================
+                  dest: /opt/kasm/credentials.txt
+                  mode: '0600'
     permissions: '0644'
+
+  - path: /usr/local/bin/kasm-health-check
+    content: |
+      #!/bin/bash
+      # KASM Workspaces Health Check Script
+      # Based on OCI-Coolify best practices
+      
+      RED='\033[0;31m'
+      GREEN='\033[0;32m'
+      NC='\033[0m' # No Color
+      
+      echo "🔍 Checking KASM Workspaces Health..."
+      
+      # Check all required KASM containers
+      REQUIRED_CONTAINERS="kasm_db kasm_api kasm_manager kasm_proxy kasm_agent kasm_share kasm_guac"
+      ALL_HEALTHY=true
+      
+      for container in $REQUIRED_CONTAINERS; do
+          if docker ps | grep -q "$container"; then
+              echo -e "${GREEN}✅${NC} $container is running"
+          else
+              echo -e "${RED}❌${NC} $container is NOT running"
+              ALL_HEALTHY=false
+          fi
+      done
+      
+      # Check web interface
+      if curl -k -sf https://localhost:443 > /dev/null; then
+          echo -e "${GREEN}✅${NC} KASM web interface is accessible"
+      else
+          echo -e "${RED}❌${NC} KASM web interface is NOT accessible"
+          ALL_HEALTHY=false
+      fi
+      
+      # Check disk space
+      DISK_USAGE=$(df / | tail -1 | awk '{print $5}' | sed 's/%//')
+      if [ $DISK_USAGE -gt 80 ]; then
+          echo -e "${RED}⚠️${NC} Disk usage is high: ${DISK_USAGE}%"
+      else
+          echo -e "${GREEN}✅${NC} Disk usage is healthy: ${DISK_USAGE}%"
+      fi
+      
+      # Check memory
+      MEM_AVAILABLE=$(free -m | awk '/^Mem:/{print $7}')
+      if [ $MEM_AVAILABLE -lt 1000 ]; then
+          echo -e "${RED}⚠️${NC} Low memory available: ${MEM_AVAILABLE}MB"
+      else
+          echo -e "${GREEN}✅${NC} Memory available: ${MEM_AVAILABLE}MB"
+      fi
+      
+      if [ "$ALL_HEALTHY" = true ]; then
+          echo -e "${GREEN}🎉 KASM is healthy!${NC}"
+          exit 0
+      else
+          echo -e "${RED}⚠️ KASM has issues that need attention${NC}"
+          exit 1
+      fi
+    permissions: '0755'
 
   - path: /opt/vibestack-ansible/README.md
     content: |
@@ -253,7 +425,7 @@ runcmd:
   - ufw allow 22/tcp comment 'SSH'
   - ufw allow 80/tcp comment 'HTTP'
   - ufw allow 443/tcp comment 'HTTPS'
-  - ufw allow 3000/tcp comment 'KASM Workspaces UI'
+  - ufw allow 3000:4000/tcp comment 'KASM Session Ports'
   - ufw allow from 172.17.0.0/16 comment 'Docker network'
   - ufw allow from 172.18.0.0/16 comment 'Docker network'
   - ufw --force enable
@@ -273,6 +445,9 @@ runcmd:
   - /usr/local/bin/ansible-galaxy collection install community.docker --force || ansible-galaxy collection install community.docker --force
   - /usr/local/bin/ansible-galaxy collection install ansible.posix --force || ansible-galaxy collection install ansible.posix --force
   - chown -R ubuntu:ubuntu /opt/vibestack-ansible
+  - echo 'Setting up KASM health monitoring...'
+  - chmod +x /usr/local/bin/kasm-health-check
+  - echo '*/5 * * * * root /usr/local/bin/kasm-health-check > /var/log/kasm-health.log 2>&1' >> /etc/crontab
   - echo 'Ansible environment ready'
   - echo 'Configuration files in /opt/vibestack-ansible/'
   - echo 'To configure run cd /opt/vibestack-ansible && ansible-playbook kasm/install.yml'
