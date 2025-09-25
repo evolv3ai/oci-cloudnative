@@ -421,36 +421,96 @@ write_files:
     permissions: '0644'
 
 runcmd:
-  - echo 'Configuring UFW firewall for KASM...'
-  - ufw allow 22/tcp comment 'SSH'
-  - ufw allow 80/tcp comment 'HTTP'
-  - ufw allow 443/tcp comment 'HTTPS'
-  - ufw allow 3000:4000/tcp comment 'KASM Session Ports'
-  - ufw allow from 172.17.0.0/16 comment 'Docker network'
-  - ufw allow from 172.18.0.0/16 comment 'Docker network'
-  - ufw --force enable
-  - echo 'UFW firewall configured'
-  - echo 'Configuring DNS resolution...'
-  - echo 'nameserver 8.8.8.8' | tee /etc/resolv.conf
-  - echo 'nameserver 1.1.1.1' | tee -a /etc/resolv.conf
-  - systemctl restart systemd-resolved
-  - sleep 5
-  - echo 'Installing Ansible and dependencies...'
-  - pip3 install --upgrade pip || apt-get update && apt-get install -y python3-pip
-  - pip3 install ansible || pip3 install --break-system-packages ansible
-  - pip3 install docker || pip3 install --break-system-packages docker
-  - sleep 10
-  - echo 'Installing Ansible collections...'
-  - /usr/local/bin/ansible-galaxy collection install community.general --force || ansible-galaxy collection install community.general --force
-  - /usr/local/bin/ansible-galaxy collection install community.docker --force || ansible-galaxy collection install community.docker --force
-  - /usr/local/bin/ansible-galaxy collection install ansible.posix --force || ansible-galaxy collection install ansible.posix --force
-  - chown -R ubuntu:ubuntu /opt/vibestack-ansible
-  - echo 'Setting up KASM health monitoring...'
-  - chmod +x /usr/local/bin/kasm-health-check
-  - echo '*/5 * * * * root /usr/local/bin/kasm-health-check > /var/log/kasm-health.log 2>&1' >> /etc/crontab
-  - echo 'Ansible environment ready'
-  - echo 'Configuration files in /opt/vibestack-ansible/'
-  - echo 'To configure run cd /opt/vibestack-ansible && ansible-playbook kasm/install.yml'
+  - |
+    set -x
+    LOG=/var/log/kasm-cloud-init-runcmd.log
+    exec > >(tee -a "$LOG") 2>&1
+
+    echo "=== Starting runcmd: $(date) ==="
+
+    echo "Configuring UFW firewall rules (will enable later)..."
+    ufw allow 22/tcp comment 'SSH' || true
+    ufw allow 80/tcp comment 'HTTP' || true
+    ufw allow 443/tcp comment 'HTTPS' || true
+    ufw allow 3000:4000/tcp comment 'KASM Session Ports' || true
+    ufw allow from 172.17.0.0/16 comment 'Docker network' || true
+    ufw allow from 172.18.0.0/16 comment 'Docker network' || true
+    echo "UFW rules written (not enabled yet)"
+
+    echo "Ensuring DNS resolvers exist (do not overwrite if already resolvable)..."
+    # If DNS currently doesn't resolve, write public resolvers
+    if ! getent hosts ports.ubuntu.com >/dev/null 2>&1; then
+      echo 'nameserver 8.8.8.8' | sudo tee /etc/resolv.conf
+      echo 'nameserver 1.1.1.1' | sudo tee -a /etc/resolv.conf
+      systemctl restart systemd-resolved || true
+      sleep 2
+    else
+      echo "DNS already working"
+    fi
+
+    echo "Waiting for network/DNS (timeout ~120s)..."
+    for i in $(seq 1 24); do
+      if getent hosts ports.ubuntu.com >/dev/null 2>&1; then
+        echo "Network OK (attempt $i)"
+        break
+      fi
+      echo "waiting for DNS... ($i)"
+      sleep 5
+    done
+
+    echo "Updating apt and installing OS-level build deps..."
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update -y || echo "apt-get update failed (will retry later if needed)"
+    apt-get install -y --no-install-recommends \
+      python3-pip python3-venv build-essential libssl-dev libffi-dev \
+      apt-transport-https ca-certificates gnupg curl wget git || echo "apt-get install failed (check network/apt)"
+
+    echo "Upgrading pip/setuptools/wheel (use python -m pip to be deterministic)..."
+    python3 -m pip install --upgrade pip setuptools wheel || echo "pip upgrade failed"
+
+    echo "Installing Ansible + docker python lib via pip (try ansible-core first)..."
+    python3 -m pip install --break-system-packages ansible-core docker || python3 -m pip install ansible-core docker || python3 -m pip install --break-system-packages ansible docker || python3 -m pip install ansible docker || echo "pip install ansible/docker failed"
+
+    # fall back to apt-installed ansible if pip approach didn't provide ansible
+    if ! command -v ansible >/dev/null 2>&1; then
+      echo "ansible not present; attempting apt install ansible (older version but reliable)..."
+      apt-get install -y ansible || echo "apt install ansible failed"
+    fi
+
+    echo "Sleeping briefly to let pip-installed scripts land on PATH..."
+    sleep 3
+
+    echo "Installing Ansible collections (only if ansible-galaxy available)..."
+    if command -v ansible-galaxy >/dev/null 2>&1; then
+      ansible-galaxy collection install community.general --force || echo "ansible-galaxy community.general failed"
+      ansible-galaxy collection install community.docker --force || echo "ansible-galaxy community.docker failed"
+      ansible-galaxy collection install ansible.posix --force || echo "ansible-galaxy ansible.posix failed"
+    else
+      echo "ansible-galaxy not found; skipping collection install"
+    fi
+
+    echo "Ensure repo ownership and permissions..."
+    chown -R ubuntu:ubuntu /opt/vibestack-ansible || true
+
+    echo "Setting up KASM health monitoring..."
+    chmod +x /usr/local/bin/kasm-health-check || true
+    # ensure duplicate cron lines are not appended repeatedly
+    grep -qxF '*/5 * * * * root /usr/local/bin/kasm-health-check > /var/log/kasm-health.log 2>&1' /etc/crontab || \
+      echo '*/5 * * * * root /usr/local/bin/kasm-health-check > /var/log/kasm-health.log 2>&1' >> /etc/crontab
+
+    echo "Enabling UFW now that installs are done (if UFW available)..."
+    ufw --force enable || echo "ufw enable failed (check rules/policy)"
+
+    echo "Final checks:"
+    echo " - pip: $(python3 -m pip --version 2>/dev/null || echo 'pip missing')"
+    echo " - ansible: $(ansible --version 2>/dev/null | head -n1 || echo 'ansible missing')"
+    echo " - ansible-galaxy: $(command -v ansible-galaxy >/dev/null 2>&1 && echo 'present' || echo 'missing')"
+
+    echo "Ansible environment ready (or see $LOG for details)"
+    echo "Configuration files in /opt/vibestack-ansible/"
+    echo "To configure run: cd /opt/vibestack-ansible && sudo ansible-playbook kasm/install.yml"
+    echo "=== runcmd finished: $(date) ==="
+
 
 final_message: |
   VibeStack KASM server is ready!
