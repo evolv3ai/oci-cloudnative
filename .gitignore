@@ -64,3 +64,9 @@ Thumbs.db
 *.tmp
 *.temp
 .cache/
+
+# RooModes
+.roomodes
+
+# Random .md files
+auto-crt.md

@@ -32,7 +32,10 @@
       "Bash(git tag:*)",
       "Read(//c/Users/Owner/**)",
       "WebFetch(domain:coolify.io)",
-      "Bash(oci:*)"
+      "Bash(oci:*)",
+      "Read(//home/kasm-user/.oci/**)",
+      "Bash(python3:*)",
+      "Read(//home/kasm-user/dv/projects/_admin/scripts/oci-coolify-cloudflare/**)"
     ],
     "deny": [],
     "ask": []
