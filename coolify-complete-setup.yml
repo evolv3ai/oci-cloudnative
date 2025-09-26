@@ -269,7 +269,7 @@
           when: tunnel_secret is defined and tunnel_secret != ''
 
         - name: Check if Traefik proxy is running (for Full TLS)
-          shell: docker ps --filter "name=coolify-proxy" --format "table {{.Names}}\t{{.Ports}}" | grep -q "0.0.0.0:443"
+          shell: docker ps --filter "name=coolify-proxy" --format "table {{ '{{.Names}}' }}\t{{ '{{.Ports}}' }}" | grep -q "0.0.0.0:443"
           register: traefik_running
           failed_when: false
           changed_when: false
