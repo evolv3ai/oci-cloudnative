@@ -171,3 +171,45 @@ variable "ssh_hostname" {
   type        = string
   default     = ""
 }
+
+# =============================================================================
+# SSL CERTIFICATE CONFIGURATION (Alternative to Cloudflare Tunnel)
+# =============================================================================
+
+variable "enable_custom_ssl" {
+  description = "Enable custom SSL certificate deployment (alternative to Cloudflare tunnel)"
+  type        = bool
+  default     = false
+}
+
+variable "ssl_certificate" {
+  description = "SSL certificate content (PEM format). Can be Cloudflare Origin certificate or any valid SSL cert"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "ssl_private_key" {
+  description = "SSL private key content (PEM format)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "ssl_domain" {
+  description = "Primary domain for the SSL certificate (e.g., coolify.yourdomain.com)"
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.ssl_domain == "" || can(regex("^[a-z0-9-]+\\.[a-z0-9.-]+\\.[a-z]{2,}$", var.ssl_domain))
+    error_message = "SSL domain must be a valid domain format (e.g., coolify.yourdomain.com)."
+  }
+}
+
+variable "ssl_certificate_chain" {
+  description = "Optional SSL certificate chain/CA bundle (PEM format)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}

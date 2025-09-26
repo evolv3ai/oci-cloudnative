@@ -86,4 +86,16 @@ locals {
   ] : [
     "ENABLE_CLOUDFLARE_TUNNEL=false"
   ]
+
+  # =============================================================================
+  # SSL CERTIFICATE CONFIGURATION
+  # =============================================================================
+
+  # Determine if custom SSL should be configured
+  setup_custom_ssl = var.enable_custom_ssl && var.ssl_certificate != "" && var.ssl_private_key != "" && var.ssl_domain != ""
+
+  # SSL certificate content (base64 encoded for safe transmission)
+  ssl_cert_b64 = local.setup_custom_ssl ? base64encode(var.ssl_certificate) : ""
+  ssl_key_b64 = local.setup_custom_ssl ? base64encode(var.ssl_private_key) : ""
+  ssl_chain_b64 = local.setup_custom_ssl && var.ssl_certificate_chain != "" ? base64encode(var.ssl_certificate_chain) : ""
 }

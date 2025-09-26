@@ -17,7 +17,49 @@
 # deployment_label                 = "dev"
 # availability_domain              = "kIdk:US-REGION-AD-1"
 # assign_public_ip                 = true
-# kasm_custom_tcp_ports            = [8443]
+# coolify_custom_tcp_ports         = [3000, 3001]
 # custom_image_ocid                = "ocid1.image.oc1..example"
-# kasm_block_volume_size_in_gbs    = 60
 # coolify_block_volume_size_in_gbs = 100
+
+# =============================================================================
+# OPTION 1: Cloudflare Tunnel Configuration (Recommended for full automation)
+# =============================================================================
+# enable_cloudflare_tunnel = true
+# cloudflare_api_token     = "your-api-token-here"
+# cloudflare_account_id    = "your-account-id-here"
+# cloudflare_zone_id       = "your-zone-id-here"
+# tunnel_hostname          = "coolify.yourdomain.com"
+# ssh_hostname             = "ssh.yourdomain.com"  # Optional, auto-generated if not set
+
+# =============================================================================
+# OPTION 2: Custom SSL Certificate (For Cloudflare Origin certs or your own SSL)
+# =============================================================================
+# enable_custom_ssl = true
+# ssl_domain        = "coolify.yourdomain.com"
+#
+# # Paste your certificate here (PEM format)
+# ssl_certificate = <<-EOT
+# -----BEGIN CERTIFICATE-----
+# MIIDtTCCAp2gAwIBAgIJAKe...
+# [Your certificate content here]
+# ...XYZ==
+# -----END CERTIFICATE-----
+# EOT
+#
+# # Paste your private key here (PEM format)
+# ssl_private_key = <<-EOT
+# -----BEGIN PRIVATE KEY-----
+# MIIEvQIBADANBgkqhkiG9w0B...
+# [Your private key content here]
+# ...abc=
+# -----END PRIVATE KEY-----
+# EOT
+#
+# # Optional: Certificate chain/CA bundle
+# ssl_certificate_chain = <<-EOT
+# -----BEGIN CERTIFICATE-----
+# MIIDtTCCAp2gAwIBAgIJAKe...
+# [CA/intermediate certificates here]
+# ...123==
+# -----END CERTIFICATE-----
+# EOT

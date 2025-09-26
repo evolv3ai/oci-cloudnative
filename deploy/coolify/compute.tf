@@ -25,6 +25,11 @@ resource "oci_core_instance" "coolify" {
     user_data = base64encode(templatefile("${path.module}/cloud-init-coolify.yaml", {
       ssh_authorized_keys = var.ssh_authorized_keys
       cloudflare_env_vars = local.cloudflare_env_vars
+      setup_custom_ssl    = local.setup_custom_ssl
+      ssl_domain          = var.ssl_domain
+      ssl_cert_b64        = local.ssl_cert_b64
+      ssl_key_b64         = local.ssl_key_b64
+      ssl_chain_b64       = local.ssl_chain_b64
     }))
   }
 

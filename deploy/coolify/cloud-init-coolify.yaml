@@ -36,6 +36,38 @@ write_files:
     path: /opt/vibestack-ansible/.env
     permissions: '0644'
 
+%{ if setup_custom_ssl ~}
+  # SSL Certificate Files
+  - content: |
+      ${ssl_cert_b64}
+    path: /opt/vibestack-ansible/ssl-cert.b64
+    permissions: '0600'
+    owner: root:root
+    encoding: plain
+
+  - content: |
+      ${ssl_key_b64}
+    path: /opt/vibestack-ansible/ssl-key.b64
+    permissions: '0600'
+    owner: root:root
+    encoding: plain
+
+%{ if ssl_chain_b64 != "" ~}
+  - content: |
+      ${ssl_chain_b64}
+    path: /opt/vibestack-ansible/ssl-chain.b64
+    permissions: '0600'
+    owner: root:root
+    encoding: plain
+%{ endif ~}
+
+  - content: |
+      SSL_ENABLED=true
+      SSL_DOMAIN=${ssl_domain}
+    path: /opt/vibestack-ansible/ssl-config.env
+    permissions: '0644'
+%{ endif ~}
+
 ssh_authorized_keys:
 %{ for key in split("\n", ssh_authorized_keys) ~}
 %{ if trimspace(key) != "" ~}
@@ -78,6 +110,27 @@ runcmd:
 
   # Set proper permissions
   - chown -R ubuntu:ubuntu /opt/vibestack-ansible
+
+%{ if setup_custom_ssl ~}
+  # Process SSL certificates if provided
+  - |
+    if [ -f /opt/vibestack-ansible/ssl-cert.b64 ]; then
+      echo "Processing SSL certificates..." >> /var/log/vibestack-setup.log
+      # Decode certificates
+      base64 -d /opt/vibestack-ansible/ssl-cert.b64 > /opt/vibestack-ansible/ssl.crt
+      base64 -d /opt/vibestack-ansible/ssl-key.b64 > /opt/vibestack-ansible/ssl.key
+      if [ -f /opt/vibestack-ansible/ssl-chain.b64 ]; then
+        base64 -d /opt/vibestack-ansible/ssl-chain.b64 > /opt/vibestack-ansible/ssl-chain.crt
+      fi
+      # Set proper permissions
+      chmod 644 /opt/vibestack-ansible/ssl.crt
+      chmod 600 /opt/vibestack-ansible/ssl.key
+      [ -f /opt/vibestack-ansible/ssl-chain.crt ] && chmod 644 /opt/vibestack-ansible/ssl-chain.crt
+      # Clean up base64 files
+      rm -f /opt/vibestack-ansible/*.b64
+      echo "SSL certificates processed successfully" >> /var/log/vibestack-setup.log
+    fi
+%{ endif ~}
 
   # Run the automation playbook (try both paths)
   - cd /opt/vibestack-ansible && (/home/ubuntu/.local/bin/ansible-playbook complete-setup.yml || /usr/local/bin/ansible-playbook complete-setup.yml)

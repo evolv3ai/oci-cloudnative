@@ -136,11 +136,84 @@
             group: ubuntu
             mode: '0755'
           loop:
-            - /data/coolify/certs
+            - /data/coolify/proxy/certs
             - /data/coolify/ssl
             - /data/coolify/custom
           when: ansible_distribution == 'Ubuntu'
           ignore_errors: yes
+
+    # =============================================================================
+    # SSL CERTIFICATE SETUP (Alternative to Cloudflare Tunnel)
+    # =============================================================================
+
+    - name: Check if SSL certificates are provided
+      stat:
+        path: /opt/vibestack-ansible/ssl.crt
+      register: ssl_cert_file
+
+    - name: Deploy SSL Certificates to Coolify
+      block:
+        - name: Read SSL configuration
+          slurp:
+            src: /opt/vibestack-ansible/ssl-config.env
+          register: ssl_config_content
+          when: ssl_cert_file.stat.exists
+
+        - name: Parse SSL domain
+          set_fact:
+            ssl_domain: "{{ (ssl_config_content.content | b64decode).split('\n') | select('match', '^SSL_DOMAIN=') | map('regex_replace', '^SSL_DOMAIN=(.+)$', '\\1') | first | default('') }}"
+          when: ssl_cert_file.stat.exists and ssl_config_content is defined
+
+        - name: Copy SSL certificate
+          copy:
+            src: /opt/vibestack-ansible/ssl.crt
+            dest: /data/coolify/proxy/certs/{{ ssl_domain }}.crt
+            mode: '0644'
+            owner: root
+            group: root
+          when: ssl_cert_file.stat.exists and ssl_domain is defined
+
+        - name: Copy SSL private key
+          copy:
+            src: /opt/vibestack-ansible/ssl.key
+            dest: /data/coolify/proxy/certs/{{ ssl_domain }}.key
+            mode: '0600'
+            owner: root
+            group: root
+          when: ssl_cert_file.stat.exists and ssl_domain is defined
+
+        - name: Check for certificate chain
+          stat:
+            path: /opt/vibestack-ansible/ssl-chain.crt
+          register: ssl_chain_file
+
+        - name: Create full certificate chain if available
+          shell: |
+            cat /data/coolify/proxy/certs/{{ ssl_domain }}.crt > /data/coolify/proxy/certs/{{ ssl_domain }}-fullchain.crt
+            if [ -f /opt/vibestack-ansible/ssl-chain.crt ]; then
+              cat /opt/vibestack-ansible/ssl-chain.crt >> /data/coolify/proxy/certs/{{ ssl_domain }}-fullchain.crt
+            fi
+          when: ssl_cert_file.stat.exists and ssl_domain is defined
+
+        - name: Restart Coolify to apply SSL certificates
+          shell: docker restart coolify 2>/dev/null || true
+          when: ssl_cert_file.stat.exists
+
+        - name: Check if Traefik needs configuration
+          shell: docker ps --filter "name=coolify-proxy" --format "{{ '{{.Names}}' }}" | grep -q coolify-proxy
+          register: has_traefik
+          failed_when: false
+          changed_when: false
+
+        - name: Configure Traefik for SSL (if present)
+          shell: |
+            if docker ps | grep -q coolify-proxy; then
+              echo "Traefik detected, SSL will be configured automatically"
+              # Traefik automatically picks up certificates from /data/coolify/proxy/certs
+            fi
+          when: ssl_cert_file.stat.exists and has_traefik.rc == 0
+
+      when: ssl_cert_file.stat.exists
 
     # =============================================================================
     # CLOUDFLARE TUNNEL SETUP (Conditional - only if credentials provided)
