@@ -22,7 +22,7 @@ resource "oci_core_instance" "coolify" {
 
   metadata = {
     ssh_authorized_keys = var.ssh_authorized_keys
-    user_data = base64encode(templatefile("${path.module}/cloud-init-coolify-with-tunnel.yaml", {
+    user_data = base64encode(templatefile("${path.module}/cloud-init-coolify-fixed.yaml", {
       ssh_authorized_keys = var.ssh_authorized_keys
       cloudflare_env_vars = local.cloudflare_env_vars
     }))
