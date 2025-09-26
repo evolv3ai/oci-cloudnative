@@ -268,6 +268,17 @@
             group: root
           when: tunnel_secret is defined and tunnel_secret != ''
 
+        - name: Check if Traefik proxy is running (for Full TLS)
+          shell: docker ps --filter "name=coolify-proxy" --format "table {{.Names}}\t{{.Ports}}" | grep -q "0.0.0.0:443"
+          register: traefik_running
+          failed_when: false
+          changed_when: false
+
+        - name: Set tunnel service endpoint
+          set_fact:
+            tunnel_service: "{{ 'https://localhost:443' if traefik_running.rc == 0 else 'http://localhost:' + coolify_port }}"
+            needs_tls_verify_skip: "{{ traefik_running.rc == 0 }}"
+
         - name: Create tunnel configuration
           copy:
             content: |
@@ -276,8 +287,9 @@
 
               ingress:
                 - hostname: {{ cloudflare_config.TUNNEL_HOSTNAME }}
-                  service: http://localhost:{{ coolify_port }}
+                  service: {{ tunnel_service }}
                   originRequest:
+                    noTLSVerify: {{ needs_tls_verify_skip }}
                     connectTimeout: 30s
                     tlsTimeout: 30s
                     tcpKeepAlive: 30s
@@ -292,6 +304,32 @@
             mode: '0644'
             owner: root
             group: root
+
+        - name: Configure tunnel remote settings (for Full TLS)
+          uri:
+            url: "https://api.cloudflare.com/client/v4/accounts/{{ cloudflare_config.CLOUDFLARE_ACCOUNT_ID }}/cfd_tunnel/{{ tunnel_id }}/configurations"
+            method: PUT
+            headers:
+              Authorization: "Bearer {{ cloudflare_config.CLOUDFLARE_API_TOKEN }}"
+              Content-Type: "application/json"
+            body_format: json
+            body:
+              config:
+                ingress:
+                  - hostname: "{{ cloudflare_config.TUNNEL_HOSTNAME }}"
+                    service: "{{ tunnel_service }}"
+                    originRequest:
+                      noTLSVerify: "{{ needs_tls_verify_skip }}"
+                  - hostname: "*.{{ cloudflare_config.TUNNEL_HOSTNAME.split('.')[1:] | join('.') }}"
+                    service: "{{ tunnel_service }}"
+                    originRequest:
+                      noTLSVerify: "{{ needs_tls_verify_skip }}"
+                  - hostname: "{{ cloudflare_config.SSH_HOSTNAME | default('ssh.' + (cloudflare_config.TUNNEL_HOSTNAME.split('.')[1:] | join('.'))) }}"
+                    service: "ssh://localhost:22"
+                  - service: "http_status:404"
+            return_content: yes
+          register: remote_config_result
+          when: tunnel_id is defined and tunnel_id != ''
 
         - name: Create DNS records
           uri:

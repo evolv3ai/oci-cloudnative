@@ -1,5 +1,6 @@
 #cloud-config
-# VibeStack Coolify Cloud-Init Configuration
+# VibeStack Coolify Production Cloud-Init Configuration
+# This is the ONLY cloud-init file that should be used for deployments
 # Includes: DNS fixes, Cloudflare tunnel support, proper timing, and error handling
 
 hostname: vibestack-coolify
