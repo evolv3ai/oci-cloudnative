@@ -35,7 +35,10 @@
       "Bash(oci:*)",
       "Read(//home/kasm-user/.oci/**)",
       "Bash(python3:*)",
-      "Read(//home/kasm-user/dv/projects/_admin/scripts/oci-coolify-cloudflare/**)"
+      "Read(//home/kasm-user/dv/projects/_admin/scripts/oci-coolify-cloudflare/**)",
+      "Bash(ansible-playbook:*)",
+      "Bash(gh run list:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

@@ -1,0 +1,97 @@
+#cloud-config
+# VibeStack Coolify with Optional Cloudflare Tunnel - Simplified Approach
+# Cloud-init configuration for automated deployment
+
+# Set hostname
+hostname: vibestack-coolify
+
+# Configure timezone
+timezone: UTC
+
+# Package updates and installations
+package_update: true
+package_upgrade: true
+package_reboot_if_required: false
+
+# Essential packages
+packages:
+  - python3
+  - python3-pip
+  - git
+  - curl
+  - wget
+  - unzip
+  - software-properties-common
+  - resolvconf
+  - jq
+
+# DNS configuration for reliable package downloads
+write_files:
+  - content: |
+      nameserver 1.1.1.1
+      nameserver 1.0.0.1
+      nameserver 8.8.8.8
+      nameserver 8.8.4.4
+    path: /etc/resolv.conf.vibestack
+    permissions: '0644'
+
+  # Environment file for Cloudflare configuration
+  - content: |
+%{ for env_var in cloudflare_env_vars ~}
+      ${env_var}
+%{ endfor ~}
+    path: /opt/vibestack-ansible/.env
+    permissions: '0644'
+    owner: root:root
+
+# SSH key configuration
+ssh_authorized_keys:
+%{ for key in split("\n", ssh_authorized_keys) ~}
+%{ if trimspace(key) != "" ~}
+  - ${trimspace(key)}
+%{ endif ~}
+%{ endfor ~}
+
+# Disable SSH password authentication
+ssh_pwauth: false
+
+# Boot commands to set up DNS immediately
+bootcmd:
+  - cp /etc/resolv.conf.vibestack /etc/resolv.conf
+
+runcmd:
+  # Set up DNS resolution first
+  - cp /etc/resolv.conf.vibestack /etc/resolv.conf
+
+  # Create ansible directory
+  - mkdir -p /opt/vibestack-ansible
+
+  # Download the latest working playbook from our repository
+  - wget -O /tmp/complete-setup.yml https://raw.githubusercontent.com/evolv3ai/oci-cloudnative/main/coolify-complete-setup.yml
+  - cp /tmp/complete-setup.yml /opt/vibestack-ansible/complete-setup.yml
+
+  # Install pip and ansible with proper timing
+  - python3 -m pip install --upgrade pip
+  - sleep 5
+  - pip3 install ansible
+  - sleep 5
+  - pip3 install docker
+  - sleep 5
+
+  # Install ansible collections with explicit path and force flag
+  - /usr/local/bin/ansible-galaxy collection install community.general --force
+  - /usr/local/bin/ansible-galaxy collection install community.docker --force
+  - /usr/local/bin/ansible-galaxy collection install ansible.posix --force
+
+  # Set proper permissions
+  - chown -R ubuntu:ubuntu /opt/vibestack-ansible
+  - chmod +x /opt/vibestack-ansible/complete-setup.yml
+
+  # Run the automation playbook
+  - cd /opt/vibestack-ansible && ansible-playbook complete-setup.yml
+
+  # Log completion
+  - echo "VibeStack Coolify setup completed at $(date)" >> /var/log/vibestack-setup.log
+
+# Final message
+final_message: "VibeStack Coolify setup completed. Check /var/log/vibestack-setup.log for details."

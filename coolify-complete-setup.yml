@@ -118,6 +118,30 @@
             delay: 30
             timeout: 300
 
+        - name: Set Coolify data directory permissions for ubuntu user
+          file:
+            path: /data/coolify
+            owner: ubuntu
+            group: ubuntu
+            mode: '0755'
+            recurse: yes
+          when: ansible_distribution == 'Ubuntu'
+          ignore_errors: yes  # In case the directory structure changes
+
+        - name: Create SSL certificate directories with ubuntu ownership
+          file:
+            path: "{{ item }}"
+            state: directory
+            owner: ubuntu
+            group: ubuntu
+            mode: '0755'
+          loop:
+            - /data/coolify/certs
+            - /data/coolify/ssl
+            - /data/coolify/custom
+          when: ansible_distribution == 'Ubuntu'
+          ignore_errors: yes
+
     # =============================================================================
     # CLOUDFLARE TUNNEL SETUP (Conditional - only if credentials provided)
     # =============================================================================
