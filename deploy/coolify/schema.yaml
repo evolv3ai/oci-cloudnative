@@ -28,6 +28,15 @@ variableGroups:
       - coolify_block_volume_size_in_gbs
       - coolify_custom_tcp_ports
       - assign_public_ip
+  - title: "🌐 Cloudflare Tunnel (Optional)"
+    description: "Configure secure access to Coolify through Cloudflare tunnel with automatic SSL certificates"
+    variables:
+      - enable_cloudflare_tunnel
+      - cloudflare_api_token
+      - cloudflare_account_id
+      - cloudflare_zone_id
+      - tunnel_hostname
+      - ssh_hostname
 
 variables:
   tenancy_ocid:
@@ -140,6 +149,54 @@ variables:
     description: "Deploy Coolify server."
     default: true
     visible: false
+  enable_cloudflare_tunnel:
+    type: boolean
+    title: "Enable Cloudflare Tunnel"
+    description: "Set up secure tunnel through Cloudflare for your Coolify instance with automatic SSL certificates"
+    default: false
+  cloudflare_api_token:
+    type: password
+    title: "Cloudflare API Token"
+    description: "Create at: Cloudflare Dashboard → My Profile → API Tokens. Required permissions: Zone:DNS:Edit, Account:Cloudflare Tunnel:Edit"
+    visible:
+      eq:
+        - enable_cloudflare_tunnel
+        - true
+  cloudflare_account_id:
+    type: string
+    title: "Cloudflare Account ID"
+    description: "Found in your Cloudflare Dashboard → Right sidebar"
+    visible:
+      eq:
+        - enable_cloudflare_tunnel
+        - true
+    pattern: "^[a-f0-9]{32}$"
+  cloudflare_zone_id:
+    type: string
+    title: "Cloudflare Zone ID"
+    description: "Found in your domain's Cloudflare Dashboard → Right sidebar"
+    visible:
+      eq:
+        - enable_cloudflare_tunnel
+        - true
+    pattern: "^[a-f0-9]{32}$"
+  tunnel_hostname:
+    type: string
+    title: "Coolify Hostname"
+    description: "Domain for accessing Coolify (e.g., coolify.yourdomain.com)"
+    visible:
+      eq:
+        - enable_cloudflare_tunnel
+        - true
+    pattern: "^[a-z0-9-]+\\.[a-z0-9.-]+\\.[a-z]{2,}$"
+  ssh_hostname:
+    type: string
+    title: "SSH Hostname (Optional)"
+    description: "Domain for SSH access (e.g., ssh.yourdomain.com). Leave empty to auto-generate"
+    visible:
+      eq:
+        - enable_cloudflare_tunnel
+        - true
 
 outputs:
   compartment:

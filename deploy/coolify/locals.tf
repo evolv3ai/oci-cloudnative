@@ -1,3 +1,10 @@
+# Random suffix for unique tunnel naming
+resource "random_string" "tunnel_suffix" {
+  length  = 6
+  special = false
+  upper   = false
+}
+
 locals {
   trimmed_label = trimspace(var.deployment_label)
   suffix        = local.trimmed_label == "" ? "" : "-${local.trimmed_label}"
@@ -51,4 +58,32 @@ locals {
   )
 
   is_flexible_shape = can(regex("Flex$", var.instance_shape))
+
+  # =============================================================================
+  # CLOUDFLARE TUNNEL CONFIGURATION
+  # =============================================================================
+
+  # Determine if Cloudflare tunnel should be configured
+  setup_cloudflare_tunnel = var.enable_cloudflare_tunnel && var.cloudflare_api_token != "" && var.tunnel_hostname != ""
+
+  # Auto-generate SSH hostname if not provided
+  final_ssh_hostname = var.ssh_hostname != "" ? var.ssh_hostname : (
+    var.tunnel_hostname != "" ? "ssh.${join(".", slice(split(".", var.tunnel_hostname), 1, length(split(".", var.tunnel_hostname))))}" : ""
+  )
+
+  # Auto-generate tunnel name
+  tunnel_name = "vibestack-coolify${local.suffix}-${random_string.tunnel_suffix.result}"
+
+  # Cloudflare environment variables for cloud-init
+  cloudflare_env_vars = local.setup_cloudflare_tunnel ? [
+    "ENABLE_CLOUDFLARE_TUNNEL=true",
+    "CLOUDFLARE_API_TOKEN=${var.cloudflare_api_token}",
+    "CLOUDFLARE_ACCOUNT_ID=${var.cloudflare_account_id}",
+    "CLOUDFLARE_ZONE_ID=${var.cloudflare_zone_id}",
+    "TUNNEL_HOSTNAME=${var.tunnel_hostname}",
+    "SSH_HOSTNAME=${local.final_ssh_hostname}",
+    "TUNNEL_NAME=${local.tunnel_name}"
+  ] : [
+    "ENABLE_CLOUDFLARE_TUNNEL=false"
+  ]
 }

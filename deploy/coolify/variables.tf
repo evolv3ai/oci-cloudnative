@@ -125,3 +125,49 @@ variable "deploy_coolify" {
   type        = bool
   default     = true
 }
+
+# =============================================================================
+# CLOUDFLARE TUNNEL CONFIGURATION (Optional)
+# =============================================================================
+
+variable "enable_cloudflare_tunnel" {
+  description = "Enable Cloudflare tunnel for secure access to Coolify"
+  type        = bool
+  default     = false
+}
+
+variable "cloudflare_api_token" {
+  description = "Cloudflare API Token with Zone:DNS:Edit and Account:Cloudflare Tunnel:Edit permissions"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "cloudflare_account_id" {
+  description = "Cloudflare Account ID (found in dashboard right sidebar)"
+  type        = string
+  default     = ""
+}
+
+variable "cloudflare_zone_id" {
+  description = "Cloudflare Zone ID for your domain (found in domain dashboard)"
+  type        = string
+  default     = ""
+}
+
+variable "tunnel_hostname" {
+  description = "Hostname for Coolify access (e.g., coolify.yourdomain.com)"
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.tunnel_hostname == "" || can(regex("^[a-z0-9-]+\\.[a-z0-9.-]+\\.[a-z]{2,}$", var.tunnel_hostname))
+    error_message = "Tunnel hostname must be a valid domain format (e.g., coolify.yourdomain.com)."
+  }
+}
+
+variable "ssh_hostname" {
+  description = "Hostname for SSH access (e.g., ssh.yourdomain.com). Leave empty to auto-generate from tunnel_hostname"
+  type        = string
+  default     = ""
+}
