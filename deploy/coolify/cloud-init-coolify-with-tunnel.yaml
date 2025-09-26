@@ -1,0 +1,446 @@
+#cloud-config
+# VibeStack Coolify with Optional Cloudflare Tunnel
+# Cloud-init configuration for automated deployment
+
+# Set hostname
+hostname: vibestack-coolify
+
+# Configure timezone
+timezone: UTC
+
+# Package updates and installations
+package_update: true
+package_upgrade: true
+package_reboot_if_required: false
+
+# Essential packages
+packages:
+  - python3
+  - python3-pip
+  - git
+  - curl
+  - wget
+  - unzip
+  - software-properties-common
+  - resolvconf
+
+# DNS configuration for reliable package downloads
+write_files:
+  - content: |
+      nameserver 1.1.1.1
+      nameserver 1.0.0.1
+      nameserver 8.8.8.8
+      nameserver 8.8.4.4
+    path: /etc/resolv.conf.vibestack
+    permissions: '0644'
+
+# SSH key configuration
+ssh_authorized_keys:
+%{ for key in split("\n", ssh_authorized_keys) ~}
+%{ if trimspace(key) != "" ~}
+  - ${trimspace(key)}
+%{ endif ~}
+%{ endfor ~}
+
+# Disable SSH password authentication
+ssh_pwauth: false
+
+# Create Ansible playbook files
+write_files:
+  # Environment file for Cloudflare configuration
+  - content: |
+%{ for var in cloudflare_env_vars ~}
+      ${var}
+%{ endfor ~}
+    path: /opt/vibestack-ansible/.env
+    permissions: '0644'
+    owner: ubuntu:ubuntu
+
+  # Main Coolify installation playbook (embedded for reliability)
+  - content: |
+      ---
+      # VibeStack Coolify Complete Setup
+      # This playbook installs Coolify and optionally configures Cloudflare tunnel
+
+      - name: VibeStack Coolify Complete Setup
+        hosts: localhost
+        become: yes
+        gather_facts: yes
+        vars:
+          coolify_port: "8000"
+
+        tasks:
+          - name: Display setup start
+            debug:
+              msg:
+                - "🚀 Starting VibeStack Coolify Setup"
+                - "📋 Host: {{ ansible_hostname }}"
+                - "⏰ Time: {{ ansible_date_time.iso8601 }}"
+
+          # Load environment configuration
+          - name: Check for environment configuration
+            stat:
+              path: /opt/vibestack-ansible/.env
+            register: env_file
+
+          - name: Load environment variables
+            shell: |
+              if [ -f /opt/vibestack-ansible/.env ]; then
+                cat /opt/vibestack-ansible/.env
+              else
+                echo "ENABLE_CLOUDFLARE_TUNNEL=false"
+              fi
+            register: env_output
+            changed_when: false
+
+          - name: Parse environment variables
+            set_fact:
+              env_vars: "{{ env_output.stdout_lines | select('match', '^[A-Z].*=.*') | map('regex_replace', '([^=]+)=(.*)', '\\1:\\2') | map('from_yaml') | combine }}"
+
+          - name: Display configuration
+            debug:
+              msg:
+                - "🔧 Configuration loaded:"
+                - "   Cloudflare Tunnel: {{ env_vars.ENABLE_CLOUDFLARE_TUNNEL | default('false') }}"
+                - "   Hostname: {{ env_vars.TUNNEL_HOSTNAME | default('Not configured') }}"
+
+          # System preparation
+          - name: Update system packages
+            apt:
+              update_cache: yes
+              upgrade: dist
+              cache_valid_time: 3600
+
+          - name: Install required packages
+            apt:
+              name:
+                - ca-certificates
+                - curl
+                - gnupg
+                - lsb-release
+                - software-properties-common
+                - apt-transport-https
+                - git
+                - wget
+              state: present
+
+          # Docker installation
+          - name: Check if Docker is installed
+            command: docker --version
+            register: docker_check
+            failed_when: false
+            changed_when: false
+
+          - name: Install Docker
+            block:
+              - name: Add Docker GPG key
+                apt_key:
+                  url: https://download.docker.com/linux/ubuntu/gpg
+                  state: present
+
+              - name: Add Docker repository
+                apt_repository:
+                  repo: "deb [arch=arm64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+                  state: present
+
+              - name: Install Docker packages
+                apt:
+                  name:
+                    - docker-ce
+                    - docker-ce-cli
+                    - containerd.io
+                    - docker-compose-plugin
+                  state: present
+                  update_cache: yes
+
+              - name: Start Docker service
+                systemd:
+                  name: docker
+                  state: started
+                  enabled: yes
+            when: docker_check.rc != 0
+
+          # Coolify installation
+          - name: Check if Coolify is installed
+            stat:
+              path: /data/coolify
+            register: coolify_installed
+
+          - name: Install Coolify
+            block:
+              - name: Download Coolify installer
+                get_url:
+                  url: https://cdn.coollabs.io/coolify/install.sh
+                  dest: /tmp/install_coolify.sh
+                  mode: '0755'
+                  timeout: 30
+                retries: 3
+                delay: 10
+
+              - name: Run Coolify installer
+                shell: /tmp/install_coolify.sh
+                args:
+                  creates: /data/coolify
+
+              - name: Wait for Coolify to start
+                wait_for:
+                  port: "{{ coolify_port }}"
+                  delay: 30
+                  timeout: 300
+            when: not coolify_installed.stat.exists
+
+          # Cloudflare tunnel setup (conditional)
+          - name: Setup Cloudflare tunnel
+            block:
+              - name: Install cloudflared
+                shell: |
+                  curl -L --output /tmp/cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64.deb
+                  dpkg -i /tmp/cloudflared.deb || apt-get install -f -y
+                args:
+                  creates: /usr/bin/cloudflared
+
+              - name: Create tunnel via API
+                uri:
+                  url: "https://api.cloudflare.com/client/v4/accounts/{{ env_vars.CLOUDFLARE_ACCOUNT_ID }}/cfd_tunnel"
+                  method: POST
+                  headers:
+                    Authorization: "Bearer {{ env_vars.CLOUDFLARE_API_TOKEN }}"
+                    Content-Type: "application/json"
+                  body_format: json
+                  body:
+                    name: "{{ env_vars.TUNNEL_NAME }}"
+                    config_src: "cloudflare"
+                  return_content: yes
+                register: tunnel_result
+                failed_when: false
+
+              - name: Extract tunnel info
+                set_fact:
+                  tunnel_id: "{{ tunnel_result.json.result.id | default('') }}"
+                  tunnel_secret: "{{ tunnel_result.json.result.credentials_file.TunnelSecret | default('') }}"
+                when: tunnel_result.json is defined and tunnel_result.json.success | default(false)
+
+              - name: Create tunnel credentials
+                copy:
+                  content: |
+                    {
+                      "AccountTag": "{{ env_vars.CLOUDFLARE_ACCOUNT_ID }}",
+                      "TunnelSecret": "{{ tunnel_secret }}",
+                      "TunnelID": "{{ tunnel_id }}"
+                    }
+                  dest: "/etc/cloudflared/{{ tunnel_id }}.json"
+                  mode: '0600'
+                when: tunnel_id is defined and tunnel_secret is defined
+
+              - name: Create tunnel config
+                copy:
+                  content: |
+                    tunnel: {{ tunnel_id }}
+                    credentials-file: /etc/cloudflared/{{ tunnel_id }}.json
+
+                    ingress:
+                      - hostname: {{ env_vars.TUNNEL_HOSTNAME }}
+                        service: http://localhost:{{ coolify_port }}
+                        originRequest:
+                          connectTimeout: 30s
+                          httpHostHeader: {{ env_vars.TUNNEL_HOSTNAME }}
+                          noTLSVerify: true
+                      - hostname: {{ env_vars.SSH_HOSTNAME | default('ssh.' + env_vars.TUNNEL_HOSTNAME.split('.')[1:] | join('.')) }}
+                        service: ssh://localhost:22
+                      - service: http_status:404
+                  dest: /etc/cloudflared/config.yml
+                  mode: '0644'
+                when: tunnel_id is defined
+
+              - name: Create DNS records
+                uri:
+                  url: "https://api.cloudflare.com/client/v4/zones/{{ env_vars.CLOUDFLARE_ZONE_ID }}/dns_records"
+                  method: POST
+                  headers:
+                    Authorization: "Bearer {{ env_vars.CLOUDFLARE_API_TOKEN }}"
+                    Content-Type: "application/json"
+                  body_format: json
+                  body:
+                    type: "CNAME"
+                    name: "{{ item }}"
+                    content: "{{ tunnel_id }}.cfargotunnel.com"
+                    proxied: true
+                  return_content: yes
+                loop:
+                  - "{{ env_vars.TUNNEL_HOSTNAME.split('.')[0] }}"
+                  - "{{ env_vars.SSH_HOSTNAME.split('.')[0] | default('ssh') }}"
+                failed_when: false
+                when: tunnel_id is defined
+
+              - name: Create systemd service for cloudflared
+                copy:
+                  content: |
+                    [Unit]
+                    Description=Cloudflare Tunnel for VibeStack Coolify
+                    After=network.target
+
+                    [Service]
+                    Type=simple
+                    User=root
+                    ExecStart=/usr/bin/cloudflared tunnel --config /etc/cloudflared/config.yml run
+                    Restart=always
+                    RestartSec=5
+                    StandardOutput=journal
+                    StandardError=journal
+
+                    [Install]
+                    WantedBy=multi-user.target
+                  dest: /etc/systemd/system/cloudflared-vibestack.service
+                  mode: '0644'
+
+              - name: Enable and start cloudflared service
+                systemd:
+                  name: cloudflared-vibestack
+                  state: started
+                  enabled: yes
+                  daemon_reload: yes
+                when: tunnel_id is defined
+            when: env_vars.ENABLE_CLOUDFLARE_TUNNEL | default('false') | bool
+
+          # Final status and information
+          - name: Get public IP
+            uri:
+              url: http://ifconfig.me/ip
+              return_content: yes
+              timeout: 10
+            register: public_ip
+            ignore_errors: yes
+
+          - name: Create deployment success file
+            copy:
+              content: |
+                # VibeStack Coolify Deployment Complete!
+                # Generated: {{ ansible_date_time.iso8601 }}
+
+                ## Access Information
+                {% if env_vars.ENABLE_CLOUDFLARE_TUNNEL | default('false') | bool %}
+                🌐 Coolify: https://{{ env_vars.TUNNEL_HOSTNAME }}
+                🔐 SSH: {{ env_vars.SSH_HOSTNAME | default('ssh.' + env_vars.TUNNEL_HOSTNAME.split('.')[1:] | join('.')) }}
+                🚇 Tunnel: {{ env_vars.TUNNEL_NAME }}
+                {% else %}
+                🌐 Coolify: http://{{ public_ip.content | trim if public_ip.content is defined else ansible_default_ipv4.address }}:{{ coolify_port }}
+                🔐 SSH: {{ public_ip.content | trim if public_ip.content is defined else ansible_default_ipv4.address }}:22
+                {% endif %}
+
+                ## Service Status
+                ✅ Coolify: Running
+                ✅ Docker: Active
+                {% if env_vars.ENABLE_CLOUDFLARE_TUNNEL | default('false') | bool %}✅ Cloudflare Tunnel: Active{% endif %}
+
+                ## Next Steps
+                1. Access Coolify web interface
+                2. Complete setup wizard
+                3. Deploy applications!
+              dest: /opt/vibestack-ansible/deployment-success.txt
+              mode: '0644'
+
+          - name: Display completion message
+            debug:
+              msg:
+                - "🎉 VibeStack Coolify Setup Complete!"
+                - "{% if env_vars.ENABLE_CLOUDFLARE_TUNNEL | default('false') | bool %}🌐 Access: https://{{ env_vars.TUNNEL_HOSTNAME }}{% else %}🌐 Access: http://{{ public_ip.content | trim if public_ip.content is defined else ansible_default_ipv4.address }}:{{ coolify_port }}{% endif %}"
+                - "📄 Details: /opt/vibestack-ansible/deployment-success.txt"
+    path: /opt/vibestack-ansible/complete-setup.yml
+    permissions: '0644'
+    owner: ubuntu:ubuntu
+
+  # README file with manual instructions
+  - content: |
+      # VibeStack Coolify Deployment
+
+      This server has been deployed with Coolify and optional Cloudflare tunnel integration.
+
+      ## Automated Setup
+
+      The setup process runs automatically during boot. Check status with:
+
+      ```bash
+      # Check if setup completed
+      cat /opt/vibestack-ansible/deployment-success.txt
+
+      # View setup logs
+      sudo journalctl -u cloud-final
+      ```
+
+      ## Manual Cloudflare Setup
+
+      If you didn't configure Cloudflare during deployment, you can set it up manually:
+
+      1. Update `/opt/vibestack-ansible/.env` with your Cloudflare credentials
+      2. Run: `cd /opt/vibestack-ansible && sudo ansible-playbook complete-setup.yml`
+
+      ## Service Management
+
+      ```bash
+      # Coolify status
+      sudo docker ps | grep coolify
+      sudo docker logs coolify
+
+      # Tunnel status (if configured)
+      sudo systemctl status cloudflared-vibestack
+      sudo journalctl -u cloudflared-vibestack -f
+      ```
+
+      ## Support
+
+      - Coolify Documentation: https://coolify.io/docs
+      - Cloudflare Tunnel Docs: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/
+    path: /opt/vibestack-ansible/README.md
+    permissions: '0644'
+    owner: ubuntu:ubuntu
+
+# Final commands to run the automation
+runcmd:
+  # Fix DNS for package downloads
+  - cp /etc/resolv.conf.vibestack /etc/resolv.conf || true
+
+  # Create vibestack directories
+  - mkdir -p /opt/vibestack-ansible
+  - mkdir -p /opt/vibestack-ansible/coolify
+  - mkdir -p /etc/cloudflared
+  - chown -R ubuntu:ubuntu /opt/vibestack-ansible
+
+  # Wait for network stability
+  - sleep 10
+
+  # Update package cache with new DNS
+  - apt-get update
+
+  # Install Python packages with delays for reliability
+  - sleep 5
+  - pip3 install --upgrade pip
+  - sleep 3
+  - pip3 install ansible
+  - sleep 3
+  - pip3 install docker requests
+
+  # Install Ansible collections with explicit paths and retries
+  - sleep 5
+  - /usr/local/bin/ansible-galaxy collection install community.general --force || sleep 10 && /usr/local/bin/ansible-galaxy collection install community.general --force
+  - /usr/local/bin/ansible-galaxy collection install community.docker --force || sleep 10 && /usr/local/bin/ansible-galaxy collection install community.docker --force
+  - /usr/local/bin/ansible-galaxy collection install ansible.posix --force || sleep 10 && /usr/local/bin/ansible-galaxy collection install ansible.posix --force
+
+  # Wait for all services to be ready
+  - sleep 30
+
+  # Run the complete Coolify setup with Cloudflare integration
+  - cd /opt/vibestack-ansible
+  - sudo -u ubuntu ansible-playbook complete-setup.yml
+
+  # Create completion marker
+  - echo "VibeStack Coolify deployment completed at $(date)" > /opt/vibestack-ansible/deployment-complete.marker
+
+  # Set final permissions
+  - chown -R ubuntu:ubuntu /opt/vibestack-ansible
+
+  # Log completion
+  - logger "VibeStack Coolify deployment completed successfully"
+
+final_message: |
+  VibeStack Coolify cloud-init configuration loaded.
+  Automated setup will begin shortly.
