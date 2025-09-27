@@ -168,7 +168,7 @@ runcmd:
       SAN_ENTRY=$(openssl x509 -in "$CERT_TMP" -noout -ext subjectAltName 2>/dev/null | tr ',' '\n' | sed -n 's/^ *DNS://p' | head -1)
       if [ -n "$SAN_ENTRY" ]; then
         case "$SAN_ENTRY" in
-          \*.*) DOMAIN=${SAN_ENTRY#*.} ;;
+          \*.*) DOMAIN=$${SAN_ENTRY#*.} ;;
           *) DOMAIN=$SAN_ENTRY ;;
         esac
       fi
@@ -177,7 +177,7 @@ runcmd:
         CN_ENTRY=$(openssl x509 -in "$CERT_TMP" -noout -subject 2>/dev/null | sed -n 's/.*CN=//p' | sed 's/,.*//')
         if [ -n "$CN_ENTRY" ]; then
           case "$CN_ENTRY" in
-            \*.*) DOMAIN=${CN_ENTRY#*.} ;;
+            \*.*) DOMAIN=$${CN_ENTRY#*.} ;;
             *) DOMAIN=$CN_ENTRY ;;
           esac
         fi
