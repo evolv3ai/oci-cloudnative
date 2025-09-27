@@ -38,7 +38,8 @@
       "Read(//home/kasm-user/dv/projects/_admin/scripts/oci-coolify-cloudflare/**)",
       "Bash(ansible-playbook:*)",
       "Bash(gh run list:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Read(//home/kasm-user/.local/bin/**)"
     ],
     "deny": [],
     "ask": []

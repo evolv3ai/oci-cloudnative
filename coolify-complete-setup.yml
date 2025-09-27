@@ -106,11 +106,40 @@
           retries: 3
           delay: 10
 
-        - name: Run Coolify installer
-          shell: /tmp/install_coolify.sh
+        - name: Wait for any package management locks before Coolify install
+          shell: |
+            echo "Checking for package locks before Coolify installation..."
+            timeout 180 bash -c 'while lsof /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do echo "Waiting for dpkg lock..."; sleep 5; done'
+            timeout 180 bash -c 'while lsof /var/lib/apt/lists/lock >/dev/null 2>&1; do echo "Waiting for apt lists lock..."; sleep 5; done'
+            timeout 180 bash -c 'while lsof /var/cache/apt/archives/lock >/dev/null 2>&1; do echo "Waiting for apt cache lock..."; sleep 5; done'
+            echo "All package locks cleared for Coolify installation"
+          when: not coolify_installed.stat.exists
+
+        - name: Run Coolify installer with retries
+          shell: |
+            # Retry logic for Coolify installer
+            for attempt in {1..3}; do
+              echo "Coolify installation attempt $attempt"
+              if /tmp/install_coolify.sh; then
+                echo "Coolify installation successful"
+                exit 0
+              else
+                echo "Coolify installation attempt $attempt failed"
+                if [ $attempt -lt 3 ]; then
+                  echo "Waiting 30 seconds before retry..."
+                  sleep 30
+                  # Check for and wait for package locks to clear
+                  timeout 60 bash -c 'while lsof /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 3; done' || true
+                fi
+              fi
+            done
+            echo "All Coolify installation attempts failed"
+            exit 1
           args:
             creates: /data/coolify
           when: not coolify_installed.stat.exists
+          register: coolify_install_result
+          failed_when: coolify_install_result.rc != 0
 
         - name: Wait for Coolify to start
           wait_for:
@@ -128,19 +157,25 @@
           when: ansible_distribution == 'Ubuntu'
           ignore_errors: yes  # In case the directory structure changes
 
-        - name: Create SSL certificate directories with ubuntu ownership
+        - name: Ensure Coolify data directory exists
+          wait_for:
+            path: /data/coolify
+            timeout: 120
+          when: ansible_distribution == 'Ubuntu'
+
+        - name: Create SSL certificate directories with proper ownership
           file:
             path: "{{ item }}"
             state: directory
-            owner: ubuntu
-            group: ubuntu
+            owner: root
+            group: root
             mode: '0755'
           loop:
+            - /data/coolify/proxy
             - /data/coolify/proxy/certs
             - /data/coolify/ssl
             - /data/coolify/custom
           when: ansible_distribution == 'Ubuntu'
-          ignore_errors: yes
 
     # =============================================================================
     # SSL CERTIFICATE SETUP (Alternative to Cloudflare Tunnel)
