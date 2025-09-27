@@ -1,0 +1,185 @@
+---
+# Improved SSL Certificate Handling for coolify-complete-setup.yml
+# This section replaces lines 178-245 in the current playbook
+
+    # =============================================================================
+    # SSL CERTIFICATE SETUP (Conditional - only if certificates provided)
+    # =============================================================================
+
+    - name: SSL Certificate Configuration
+      block:
+        - name: Check for SSL certificate files
+          stat:
+            path: "{{ item }}"
+          register: ssl_files
+          loop:
+            - /opt/vibestack-ansible/ssl.cert
+            - /opt/vibestack-ansible/ssl.key
+
+        - name: Verify SSL files exist
+          set_fact:
+            ssl_cert_exists: "{{ ssl_files.results[0].stat.exists }}"
+            ssl_key_exists: "{{ ssl_files.results[1].stat.exists }}"
+
+        - name: Display SSL status
+          debug:
+            msg:
+              - "🔐 SSL Certificate Status:"
+              - "   Certificate: {{ 'Found' if ssl_cert_exists else 'Not found' }}"
+              - "   Private Key: {{ 'Found' if ssl_key_exists else 'Not found' }}"
+
+        - name: Validate SSL certificate format
+          shell: |
+            openssl x509 -in /opt/vibestack-ansible/ssl.cert -noout -text > /dev/null 2>&1
+          register: cert_validation
+          failed_when: false
+          when: ssl_cert_exists
+
+        - name: Validate SSL private key format
+          shell: |
+            openssl rsa -in /opt/vibestack-ansible/ssl.key -check -noout > /dev/null 2>&1 || \
+            openssl pkey -in /opt/vibestack-ansible/ssl.key -noout > /dev/null 2>&1
+          register: key_validation
+          failed_when: false
+          when: ssl_key_exists
+
+        - name: Check certificate and key match
+          shell: |
+            cert_mod=$(openssl x509 -noout -modulus -in /opt/vibestack-ansible/ssl.cert | openssl md5)
+            key_mod=$(openssl rsa -noout -modulus -in /opt/vibestack-ansible/ssl.key | openssl md5)
+            [ "$cert_mod" = "$key_mod" ]
+          register: cert_key_match
+          failed_when: false
+          when: ssl_cert_exists and ssl_key_exists
+
+        - name: Report validation results
+          debug:
+            msg:
+              - "Certificate valid: {{ cert_validation.rc == 0 }}"
+              - "Private key valid: {{ key_validation.rc == 0 }}"
+              - "Cert/Key match: {{ cert_key_match.rc == 0 }}"
+          when: ssl_cert_exists and ssl_key_exists
+
+        - name: Extract primary domain from certificate
+          shell: |
+            # Try to get CN (Common Name) first
+            domain=$(openssl x509 -in /opt/vibestack-ansible/ssl.cert -noout -subject | \
+                     sed -n 's/.*CN=\([^/]*\).*/\1/p' | tr -d ' ')
+            
+            # If no CN, get first SAN
+            if [ -z "$domain" ]; then
+              domain=$(openssl x509 -in /opt/vibestack-ansible/ssl.cert -noout -text | \
+                       grep -A1 "Subject Alternative Name" | tail -1 | \
+                       grep -oP 'DNS:\K[^,]*' | head -1 | tr -d ' ')
+            fi
+            
+            # Output domain or fallback
+            echo "${domain:-coolify.local}"
+          register: cert_domain_result
+          when: ssl_cert_exists and cert_validation.rc == 0
+
+        - name: Set SSL domain
+          set_fact:
+            ssl_domain: "{{ cert_domain_result.stdout | trim }}"
+          when: ssl_cert_exists and cert_domain_result is defined
+
+        - name: Ensure Coolify proxy certificates directory exists
+          file:
+            path: /data/coolify/proxy/certs
+            state: directory
+            mode: '0755'
+            owner: root
+            group: root
+
+        - name: Copy SSL certificate to Coolify
+          copy:
+            src: /opt/vibestack-ansible/ssl.cert
+            dest: "/data/coolify/proxy/certs/{{ ssl_domain }}.crt"
+            mode: '0644'
+            owner: root
+            group: root
+            remote_src: yes
+          when: ssl_cert_exists and cert_validation.rc == 0
+
+        - name: Copy SSL private key to Coolify
+          copy:
+            src: /opt/vibestack-ansible/ssl.key
+            dest: "/data/coolify/proxy/certs/{{ ssl_domain }}.key"
+            mode: '0600'
+            owner: root
+            group: root
+            remote_src: yes
+          when: ssl_key_exists and key_validation.rc == 0
+
+        - name: Create certificate bundle for Traefik
+          shell: |
+            # Create a combined cert+chain file if chain exists
+            cp /data/coolify/proxy/certs/{{ ssl_domain }}.crt \
+               /data/coolify/proxy/certs/{{ ssl_domain }}.pem
+            
+            if [ -f /opt/vibestack-ansible/ssl-chain.cert ]; then
+              cat /opt/vibestack-ansible/ssl-chain.cert >> \
+                  /data/coolify/proxy/certs/{{ ssl_domain }}.pem
+            fi
+            
+            # Also create a fullchain file
+            cp /data/coolify/proxy/certs/{{ ssl_domain }}.pem \
+               /data/coolify/proxy/certs/{{ ssl_domain }}-fullchain.pem
+          when: ssl_cert_exists and cert_validation.rc == 0
+
+        - name: Configure Traefik dynamic configuration for SSL
+          copy:
+            content: |
+              tls:
+                certificates:
+                  - certFile: /certs/{{ ssl_domain }}.pem
+                    keyFile: /certs/{{ ssl_domain }}.key
+                    stores:
+                      - default
+                stores:
+                  default:
+                    defaultCertificate:
+                      certFile: /certs/{{ ssl_domain }}.pem
+                      keyFile: /certs/{{ ssl_domain }}.key
+            dest: /data/coolify/proxy/dynamic/certificates.yml
+            mode: '0644'
+          when: ssl_cert_exists and ssl_key_exists
+
+        - name: Restart Coolify to apply SSL certificates
+          docker_container:
+            name: coolify
+            state: started
+            restart: yes
+          register: coolify_restart
+          failed_when: false
+          when: ssl_cert_exists and ssl_key_exists
+
+        - name: Wait for Coolify to be healthy after restart
+          wait_for:
+            port: 8000
+            host: 127.0.0.1
+            delay: 10
+            timeout: 60
+          when: coolify_restart is defined
+
+        - name: Restart Traefik proxy if exists
+          docker_container:
+            name: coolify-proxy
+            state: started
+            restart: yes
+          failed_when: false
+          register: traefik_restart
+          when: ssl_cert_exists and ssl_key_exists
+
+        - name: Display SSL configuration summary
+          debug:
+            msg:
+              - "✅ SSL Configuration Complete:"
+              - "   Domain: {{ ssl_domain | default('Not configured') }}"
+              - "   Certificate: {{ 'Installed' if ssl_cert_exists else 'Not provided' }}"
+              - "   Private Key: {{ 'Installed' if ssl_key_exists else 'Not provided' }}"
+              - "   Validation: {{ 'Passed' if (cert_validation.rc | default(1)) == 0 else 'Failed' }}"
+              - "   Coolify Restart: {{ 'Success' if (coolify_restart.changed | default(false)) else 'Not needed' }}"
+          when: ssl_cert_exists or ssl_key_exists
+
+      when: ssl_cert_exists | default(false) or ssl_key_exists | default(false)

@@ -1,0 +1,239 @@
+#cloud-config
+# VibeStack Coolify Cloud-Init Configuration
+# FIXED VERSION: Proper handling of Cloudflare Origin Certificates
+
+hostname: vibestack-coolify
+timezone: UTC
+
+# DISABLE automatic package management - we control timing for DNS
+package_update: false
+package_upgrade: false
+package_reboot_if_required: false
+
+# DNS fix happens FIRST in bootcmd (early boot phase)
+bootcmd:
+  - echo "nameserver 1.1.1.1" > /etc/resolv.conf
+  - echo "nameserver 1.0.0.1" >> /etc/resolv.conf
+  - echo "nameserver 8.8.8.8" >> /etc/resolv.conf
+  - echo "nameserver 8.8.4.4" >> /etc/resolv.conf
+  - echo "DNS configured at $(date)" >> /var/log/vibestack-dns.log
+
+write_files:
+  # Backup DNS config
+  - content: |
+      nameserver 1.1.1.1
+      nameserver 1.0.0.1
+      nameserver 8.8.8.8
+      nameserver 8.8.4.4
+    path: /etc/resolv.conf.vibestack
+    permissions: '0644'
+
+  # Environment file for Cloudflare configuration
+  - content: |
+%{ for var in cloudflare_env_vars ~}
+      ${var}
+%{ endfor ~}
+    path: /opt/vibestack-ansible/.env
+    permissions: '0644'
+
+%{ if setup_custom_ssl ~}
+  # SSL Certificate Files (base64 encoded for safe transmission)
+  - content: |
+      ${ssl_cert_b64}
+    path: /opt/vibestack-ansible/ssl-cert.b64
+    permissions: '0600'
+    owner: root:root
+    encoding: plain
+
+  - content: |
+      ${ssl_key_b64}
+    path: /opt/vibestack-ansible/ssl-key.b64
+    permissions: '0600'
+    owner: root:root
+    encoding: plain
+
+%{ if ssl_chain_b64 != "" ~}
+  - content: |
+      ${ssl_chain_b64}
+    path: /opt/vibestack-ansible/ssl-chain.b64
+    permissions: '0600'
+    owner: root:root
+    encoding: plain
+%{ endif ~}
+
+  - content: |
+      SSL_ENABLED=true
+    path: /opt/vibestack-ansible/ssl-config.env
+    permissions: '0644'
+%{ endif ~}
+
+ssh_authorized_keys:
+%{ for key in split("\n", ssh_authorized_keys) ~}
+%{ if trimspace(key) != "" ~}
+  - ${trimspace(key)}
+%{ endif ~}
+%{ endfor ~}
+
+ssh_pwauth: false
+
+# All package installation happens AFTER DNS is working
+runcmd:
+  # Ensure DNS is working
+  - cp /etc/resolv.conf.vibestack /etc/resolv.conf
+  - echo "Starting VibeStack setup at $(date)" >> /var/log/vibestack-setup.log
+
+  # Test DNS resolution before proceeding
+  - timeout 30 bash -c 'until nslookup ubuntu.com; do echo "Waiting for DNS..." >> /var/log/vibestack-setup.log; sleep 2; done'
+
+  # Wait for any automatic package management to complete
+  - |
+    echo "Waiting for automatic package management to complete..." >> /var/log/vibestack-setup.log
+    timeout 300 bash -c 'while sudo lsof /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do echo "Waiting for dpkg lock..." >> /var/log/vibestack-setup.log; sleep 5; done'
+    timeout 300 bash -c 'while sudo lsof /var/lib/apt/lists/lock >/dev/null 2>&1; do echo "Waiting for apt lock..." >> /var/log/vibestack-setup.log; sleep 5; done'
+    timeout 300 bash -c 'while sudo lsof /var/cache/apt/archives/lock >/dev/null 2>&1; do echo "Waiting for apt cache lock..." >> /var/log/vibestack-setup.log; sleep 5; done'
+    echo "Package management locks cleared" >> /var/log/vibestack-setup.log
+
+  # Now safely update packages with working DNS (with retries and lock checking)
+  - |
+    for i in {1..3}; do
+      echo "Package update attempt $i" >> /var/log/vibestack-setup.log
+      if apt-get update; then
+        echo "Package update successful" >> /var/log/vibestack-setup.log
+        break
+      else
+        echo "Package update failed, waiting 10 seconds..." >> /var/log/vibestack-setup.log
+        sleep 10
+      fi
+    done
+
+  - |
+    for i in {1..3}; do
+      echo "Package install attempt $i" >> /var/log/vibestack-setup.log
+      if apt-get install -y python3-pip git curl wget unzip software-properties-common resolvconf jq lsof; then
+        echo "Package install successful" >> /var/log/vibestack-setup.log
+        break
+      else
+        echo "Package install failed, waiting 15 seconds..." >> /var/log/vibestack-setup.log
+        sleep 15
+        # Clear any potential locks before retry
+        timeout 60 bash -c 'while sudo lsof /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 2; done' || true
+      fi
+    done
+
+  # Create ansible directory
+  - mkdir -p /opt/vibestack-ansible
+
+  # Download the latest playbook from GitHub (with retry)
+  - timeout 60 wget -O /tmp/complete-setup.yml https://raw.githubusercontent.com/evolv3ai/oci-cloudnative/main/coolify-complete-setup.yml || (sleep 10 && timeout 60 wget -O /tmp/complete-setup.yml https://raw.githubusercontent.com/evolv3ai/oci-cloudnative/main/coolify-complete-setup.yml)
+  - cp /tmp/complete-setup.yml /opt/vibestack-ansible/complete-setup.yml
+
+  # Install pip and ansible with proper paths and retries
+  - python3 -m pip install --upgrade pip || (sleep 5 && python3 -m pip install --upgrade pip)
+  - sleep 5
+  - pip3 install ansible docker || (sleep 5 && pip3 install ansible docker)
+  - sleep 5
+
+  # Install ansible collections (try both possible paths)
+  - /home/ubuntu/.local/bin/ansible-galaxy collection install community.general --force || /usr/local/bin/ansible-galaxy collection install community.general --force || ansible-galaxy collection install community.general --force
+  - /home/ubuntu/.local/bin/ansible-galaxy collection install community.docker --force || /usr/local/bin/ansible-galaxy collection install community.docker --force || ansible-galaxy collection install community.docker --force
+  - /home/ubuntu/.local/bin/ansible-galaxy collection install ansible.posix --force || /usr/local/bin/ansible-galaxy collection install ansible.posix --force || ansible-galaxy collection install ansible.posix --force
+
+  # Set proper permissions
+  - chown -R ubuntu:ubuntu /opt/vibestack-ansible
+
+%{ if setup_custom_ssl ~}
+  # FIXED SSL PROCESSING FOR CLOUDFLARE ORIGIN CERTIFICATES
+  - |
+    if [ -f /opt/vibestack-ansible/ssl-cert.b64 ] && [ -f /opt/vibestack-ansible/ssl-key.b64 ]; then
+      echo "Processing Cloudflare Origin SSL certificates..." >> /var/log/vibestack-setup.log
+      
+      # Simply decode the base64 - the content is already perfect PEM format
+      base64 -d /opt/vibestack-ansible/ssl-cert.b64 > /opt/vibestack-ansible/ssl.cert
+      base64 -d /opt/vibestack-ansible/ssl-key.b64 > /opt/vibestack-ansible/ssl.key
+      
+      # Handle certificate chain if provided
+      if [ -f /opt/vibestack-ansible/ssl-chain.b64 ]; then
+        base64 -d /opt/vibestack-ansible/ssl-chain.b64 > /opt/vibestack-ansible/ssl-chain.cert
+        chmod 644 /opt/vibestack-ansible/ssl-chain.cert
+      fi
+      
+      # Set proper permissions
+      chmod 644 /opt/vibestack-ansible/ssl.cert
+      chmod 600 /opt/vibestack-ansible/ssl.key
+      
+      # Validate the certificate
+      if openssl x509 -in /opt/vibestack-ansible/ssl.cert -noout 2>/dev/null; then
+        echo "SSL certificate is valid" >> /var/log/vibestack-setup.log
+        # Extract domain for logging
+        domain=$(openssl x509 -in /opt/vibestack-ansible/ssl.cert -noout -text | grep -A1 "Subject Alternative Name" | tail -1 | grep -oP 'DNS:\K[^,]*' | head -1)
+        echo "Certificate domain: $domain" >> /var/log/vibestack-setup.log
+      else
+        echo "ERROR: SSL certificate validation failed!" >> /var/log/vibestack-setup.log
+        openssl x509 -in /opt/vibestack-ansible/ssl.cert -noout -text 2>&1 | head -20 >> /var/log/vibestack-setup.log
+      fi
+      
+      # Validate the private key
+      if openssl rsa -in /opt/vibestack-ansible/ssl.key -check -noout 2>/dev/null || \
+         openssl pkey -in /opt/vibestack-ansible/ssl.key -noout 2>/dev/null; then
+        echo "SSL private key is valid" >> /var/log/vibestack-setup.log
+      else
+        echo "ERROR: SSL private key validation failed!" >> /var/log/vibestack-setup.log
+        openssl rsa -in /opt/vibestack-ansible/ssl.key -check 2>&1 | head -10 >> /var/log/vibestack-setup.log
+      fi
+      
+      # Verify cert and key match
+      cert_modulus=$(openssl x509 -noout -modulus -in /opt/vibestack-ansible/ssl.cert 2>/dev/null | openssl md5)
+      key_modulus=$(openssl rsa -noout -modulus -in /opt/vibestack-ansible/ssl.key 2>/dev/null | openssl md5)
+      if [ "$cert_modulus" = "$key_modulus" ]; then
+        echo "SSL certificate and key match verified" >> /var/log/vibestack-setup.log
+      else
+        echo "WARNING: Certificate and key may not match!" >> /var/log/vibestack-setup.log
+      fi
+      
+      # Clean up base64 files
+      rm -f /opt/vibestack-ansible/*.b64
+      
+      echo "SSL certificate processing complete" >> /var/log/vibestack-setup.log
+    else
+      echo "SSL certificate files not found, skipping SSL setup" >> /var/log/vibestack-setup.log
+    fi
+%{ endif ~}
+
+  # Final check: ensure no package management processes are running before Ansible
+  - |
+    echo "Final package management check before Ansible..." >> /var/log/vibestack-setup.log
+    timeout 120 bash -c 'while sudo lsof /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do echo "Waiting for final dpkg lock clear..." >> /var/log/vibestack-setup.log; sleep 3; done'
+    echo "All package locks cleared, starting Ansible..." >> /var/log/vibestack-setup.log
+
+  # Run the automation playbook with better error handling and verbose logging
+  - |
+    cd /opt/vibestack-ansible
+    export ANSIBLE_LOG_PATH=/var/log/ansible-setup.log
+    export ANSIBLE_VERBOSITY=2
+    
+    # Try multiple ansible paths
+    if command -v ansible-playbook >/dev/null 2>&1; then
+      ANSIBLE_CMD="ansible-playbook"
+    elif [ -x /home/ubuntu/.local/bin/ansible-playbook ]; then
+      ANSIBLE_CMD="/home/ubuntu/.local/bin/ansible-playbook"
+    elif [ -x /usr/local/bin/ansible-playbook ]; then
+      ANSIBLE_CMD="/usr/local/bin/ansible-playbook"
+    else
+      echo "ERROR: ansible-playbook not found!" >> /var/log/vibestack-setup.log
+      exit 1
+    fi
+    
+    echo "Using ansible command: $ANSIBLE_CMD" >> /var/log/vibestack-setup.log
+    
+    if $ANSIBLE_CMD complete-setup.yml; then
+      echo "Ansible playbook completed successfully" >> /var/log/vibestack-setup.log
+    else
+      echo "Ansible playbook failed with exit code $?" >> /var/log/vibestack-setup.log
+      echo "Check /var/log/ansible-setup.log for details" >> /var/log/vibestack-setup.log
+      # Continue anyway - partial setup might be recoverable
+    fi
+
+  # Log completion
+  - echo "VibeStack Coolify setup completed at $(date)" >> /var/log/vibestack-setup.log
+
+final_message: "VibeStack Coolify setup completed. Check /var/log/vibestack-setup.log for details."
