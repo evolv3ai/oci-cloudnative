@@ -65,7 +65,15 @@ resource "oci_core_instance" "coolify" {
 
   metadata = {
     ssh_authorized_keys = var.ssh_authorized_keys
-    user_data = base64encode(file("${path.module}/cloud-init-coolify.yaml"))
+    user_data = base64encode(templatefile("${path.module}/cloud-init-coolify.yaml", {
+      ssh_authorized_keys    = var.ssh_authorized_keys
+      cloudflare_env_vars    = []  # Not configured in full deployment yet
+      setup_custom_ssl       = false  # Not configured in full deployment yet
+      ssl_cert_b64           = ""
+      ssl_key_b64            = ""
+      ssl_chain_b64          = ""
+      skip_ansible_execution = var.skip_ansible_execution
+    }))
   }
 
   source_details {

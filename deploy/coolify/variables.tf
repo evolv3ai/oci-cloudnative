@@ -195,3 +195,13 @@ variable "private_key" {
   default     = ""
   sensitive   = true
 }
+
+# =============================================================================
+# ANSIBLE TESTING CONFIGURATION
+# =============================================================================
+
+variable "skip_ansible_execution" {
+  description = "Skip automatic Ansible playbook execution during cloud-init for testing purposes"
+  type        = bool
+  default     = false
+}

@@ -40,7 +40,8 @@
       "Bash(gh run list:*)",
       "Bash(curl:*)",
       "Read(//home/kasm-user/.local/bin/**)",
-      "Bash(gh release list:*)"
+      "Bash(gh release list:*)",
+      "Bash(terraform init:*)"
     ],
     "deny": [],
     "ask": []

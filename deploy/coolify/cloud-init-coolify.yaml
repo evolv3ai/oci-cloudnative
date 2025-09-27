@@ -255,6 +255,58 @@ runcmd:
     fi
 %{ endif ~}
 
+%{ if skip_ansible_execution ~}
+  # ANSIBLE TESTING MODE - Skipping automatic execution
+  - |
+    echo "=============================================" >> /var/log/vibestack-setup.log
+    echo "ANSIBLE TESTING MODE ENABLED" >> /var/log/vibestack-setup.log
+    echo "=============================================" >> /var/log/vibestack-setup.log
+    echo "Ansible has been installed but the playbook will NOT be executed automatically." >> /var/log/vibestack-setup.log
+    echo "" >> /var/log/vibestack-setup.log
+    echo "To run the Ansible playbook manually, SSH into the instance and run:" >> /var/log/vibestack-setup.log
+    echo "  cd /opt/vibestack-ansible" >> /var/log/vibestack-setup.log
+    echo "  ansible-playbook complete-setup.yml" >> /var/log/vibestack-setup.log
+    echo "" >> /var/log/vibestack-setup.log
+    echo "The playbook is located at: /opt/vibestack-ansible/complete-setup.yml" >> /var/log/vibestack-setup.log
+    echo "=============================================" >> /var/log/vibestack-setup.log
+
+  # Create a helper script for manual execution
+  - |
+    cat > /opt/vibestack-ansible/run-setup.sh << 'EOF'
+    #!/bin/bash
+    # Helper script to run the Ansible setup manually
+
+    cd /opt/vibestack-ansible
+
+    echo "Starting Ansible playbook execution..."
+    export ANSIBLE_LOG_PATH=/var/log/ansible-setup.log
+    export ANSIBLE_VERBOSITY=2
+
+    # Find ansible-playbook command
+    if command -v ansible-playbook >/dev/null 2>&1; then
+      ANSIBLE_CMD="ansible-playbook"
+    elif [ -x /home/ubuntu/.local/bin/ansible-playbook ]; then
+      ANSIBLE_CMD="/home/ubuntu/.local/bin/ansible-playbook"
+    elif [ -x /usr/local/bin/ansible-playbook ]; then
+      ANSIBLE_CMD="/usr/local/bin/ansible-playbook"
+    else
+      echo "ERROR: ansible-playbook not found!"
+      exit 1
+    fi
+
+    echo "Using ansible command: $ANSIBLE_CMD"
+
+    if $ANSIBLE_CMD complete-setup.yml; then
+      echo "Ansible playbook completed successfully"
+    else
+      echo "Ansible playbook failed with exit code $?"
+      echo "Check /var/log/ansible-setup.log for details"
+    fi
+    EOF
+    chmod +x /opt/vibestack-ansible/run-setup.sh
+    chown ubuntu:ubuntu /opt/vibestack-ansible/run-setup.sh
+
+%{ else ~}
   # Final check: ensure no package management processes are running before Ansible
   - |
     echo "Final package management check before Ansible..." >> /var/log/vibestack-setup.log
@@ -266,7 +318,7 @@ runcmd:
     cd /opt/vibestack-ansible
     export ANSIBLE_LOG_PATH=/var/log/ansible-setup.log
     export ANSIBLE_VERBOSITY=2
-    
+
     # Try multiple ansible paths
     if command -v ansible-playbook >/dev/null 2>&1; then
       ANSIBLE_CMD="ansible-playbook"
@@ -278,9 +330,9 @@ runcmd:
       echo "ERROR: ansible-playbook not found!" >> /var/log/vibestack-setup.log
       exit 1
     fi
-    
+
     echo "Using ansible command: $ANSIBLE_CMD" >> /var/log/vibestack-setup.log
-    
+
     if $ANSIBLE_CMD complete-setup.yml; then
       echo "Ansible playbook completed successfully" >> /var/log/vibestack-setup.log
     else
@@ -288,6 +340,7 @@ runcmd:
       echo "Check /var/log/ansible-setup.log for details" >> /var/log/vibestack-setup.log
       # Continue anyway - partial setup might be recoverable
     fi
+%{ endif ~}
 
   # Log completion
   - echo "VibeStack Coolify setup completed at $(date)" >> /var/log/vibestack-setup.log

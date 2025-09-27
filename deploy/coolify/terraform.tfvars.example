@@ -21,6 +21,9 @@
 # custom_image_ocid                = "ocid1.image.oc1..example"
 # coolify_block_volume_size_in_gbs = 100
 
+# Ansible testing mode (set to true to skip automatic playbook execution)
+# skip_ansible_execution = false
+
 # =============================================================================
 # OPTION 1: Cloudflare Tunnel Configuration (Recommended for full automation)
 # =============================================================================

@@ -21,3 +21,6 @@
 # custom_image_ocid                = "ocid1.image.oc1..example"
 # kasm_block_volume_size_in_gbs    = 60
 # coolify_block_volume_size_in_gbs = 100
+
+# Ansible testing mode (set to true to skip automatic playbook execution)
+# skip_ansible_execution = false

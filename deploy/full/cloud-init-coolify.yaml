@@ -1,238 +1,348 @@
 #cloud-config
-# VibeStack Coolify Server - Ansible Ready Configuration
-# This script prepares the server with Ansible and configuration playbooks
+# VibeStack Coolify Cloud-Init Configuration
+# FIXED VERSION: Proper handling of Cloudflare Origin Certificates
 
-package_update: true
-package_upgrade: true
+hostname: vibestack-coolify
+timezone: UTC
 
-packages:
-  - python3
-  - python3-pip
-  - git
-  - curl
-  - wget
-  - software-properties-common
-  - resolvconf
+# DISABLE automatic package management - we control timing for DNS
+package_update: false
+package_upgrade: false
+package_reboot_if_required: false
+
+# DNS fix happens FIRST in bootcmd (early boot phase)
+bootcmd:
+  - echo "nameserver 1.1.1.1" > /etc/resolv.conf
+  - echo "nameserver 1.0.0.1" >> /etc/resolv.conf
+  - echo "nameserver 8.8.8.8" >> /etc/resolv.conf
+  - echo "nameserver 8.8.4.4" >> /etc/resolv.conf
+  - echo "DNS configured at $(date)" >> /var/log/vibestack-dns.log
 
 write_files:
-  - path: /opt/vibestack-ansible/coolify/install.yml
-    content: |
-      ---
-      # Coolify Installation Playbook
-      # Installs Coolify on OCI instances
-
-      - name: Install Coolify
-        hosts: localhost
-        become: yes
-        gather_facts: yes
-        vars:
-          docker_arch: "{{ 'arm64' if ansible_architecture == 'aarch64' else 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}"
-
-        tasks:
-          - name: System information
-            debug:
-              msg:
-                - "🚀 Coolify Installation"
-                - "📋 Host: {{ ansible_hostname }}"
-                - "🏗️ Architecture: {{ ansible_architecture }} (Docker: {{ docker_arch }})"
-                - "💿 Distribution: {{ ansible_distribution }} {{ ansible_distribution_version }}"
-
-          - name: Update system packages
-            apt:
-              update_cache: yes
-              upgrade: dist
-              cache_valid_time: 3600
-
-          - name: Install required packages
-            apt:
-              name:
-                - ca-certificates
-                - curl
-                - gnupg
-                - lsb-release
-                - software-properties-common
-                - apt-transport-https
-                - git
-                - wget
-              state: present
-
-          - name: Install Docker
-            block:
-              - name: Check if Docker is installed
-                command: docker --version
-                register: docker_check
-                failed_when: false
-                changed_when: false
-
-              - name: Docker installation status
-                debug:
-                  msg: "Docker status: {{ 'Already installed' if docker_check.rc == 0 else 'Not installed' }}"
-
-              - name: Add Docker GPG key
-                apt_key:
-                  url: https://download.docker.com/linux/ubuntu/gpg
-                  state: present
-                when: docker_check.rc != 0
-
-              - name: Add Docker repository
-                apt_repository:
-                  repo: "deb [arch={{ docker_arch }}] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
-                  state: present
-                when: docker_check.rc != 0
-
-              - name: Install Docker packages
-                apt:
-                  name:
-                    - docker-ce
-                    - docker-ce-cli
-                    - containerd.io
-                    - docker-compose-plugin
-                  state: present
-                  update_cache: yes
-                when: docker_check.rc != 0
-
-              - name: Start and enable Docker
-                systemd:
-                  name: docker
-                  state: started
-                  enabled: yes
-
-          - name: Install Coolify
-            block:
-              - name: Check if Coolify is already installed
-                stat:
-                  path: /data/coolify
-                register: coolify_installed
-
-              - name: Wait for network connectivity
-                wait_for:
-                  host: 8.8.8.8
-                  port: 53
-                  timeout: 60
-                  delay: 10
-
-              - name: Download Coolify installer
-                shell: |
-                  curl -fsSL https://cdn.coollabs.io/coolify/install.sh -o /tmp/install_coolify.sh
-                  chmod +x /tmp/install_coolify.sh
-                args:
-                  creates: /tmp/install_coolify.sh
-                when: not coolify_installed.stat.exists
-                retries: 3
-                delay: 10
-
-              - name: Run Coolify installer
-                shell: /tmp/install_coolify.sh
-                args:
-                  creates: /data/coolify
-                when: not coolify_installed.stat.exists
-
-              - name: Wait for Coolify to start
-                wait_for:
-                  port: 8000
-                  delay: 30
-                  timeout: 300
-
-              - name: Get public IP address
-                uri:
-                  url: http://ifconfig.me/ip
-                  method: GET
-                  return_content: yes
-                register: public_ip
-                ignore_errors: yes
-
-              - name: Display Coolify access information
-                debug:
-                  msg:
-                    - "✅ Coolify Installation Complete!"
-                    - "🌐 Access: http://{{ public_ip.content | trim if public_ip.content is defined else ansible_default_ipv4.address }}:8000"
-                    - "📝 Complete the initial setup wizard in your browser"
+  # Backup DNS config
+  - content: |
+      nameserver 1.1.1.1
+      nameserver 1.0.0.1
+      nameserver 8.8.8.8
+      nameserver 8.8.4.4
+    path: /etc/resolv.conf.vibestack
     permissions: '0644'
 
-  - path: /opt/vibestack-ansible/README.md
-    content: |
-      # VibeStack Ansible Configuration
-
-      This directory contains Ansible playbooks for configuring your VibeStack servers.
-
-      ## Quick Start
-
-      ### Configure Coolify
-      ```bash
-      cd /opt/vibestack-ansible
-      ansible-playbook coolify/install.yml
-      ```
-
-      ### Access Coolify
-      After installation, open your browser to:
-      http://$(curl -s ifconfig.me):8000
-
-      ## What Gets Installed
-
-      - **Docker**: Container runtime for Coolify
-      - **Coolify**: Self-hosted application deployment platform
-      - **Initial Setup**: Ready for web-based configuration
-
-      ## Next Steps
-
-      1. Run the installation playbook above
-      2. Open Coolify in your browser
-      3. Complete the setup wizard (create admin user)
-      4. Start deploying applications!
-
-      ## Troubleshooting
-
-      - Check Docker: `sudo docker ps`
-      - Check Coolify logs: `sudo docker logs coolify`
-      - Restart Coolify: `cd /data/coolify && sudo docker compose restart`
+  # Environment file for Cloudflare configuration
+  - content: |
+%{ for var in cloudflare_env_vars ~}
+      ${var}
+%{ endfor ~}
+    path: /opt/vibestack-ansible/.env
     permissions: '0644'
 
+%{ if setup_custom_ssl ~}
+  # SSL Certificate Files (base64 encoded for safe transmission)
+  - content: "${ssl_cert_b64}"
+    path: /opt/vibestack-ansible/ssl-cert.b64
+    permissions: '0600'
+    owner: root:root
+
+  - content: "${ssl_key_b64}"
+    path: /opt/vibestack-ansible/ssl-key.b64
+    permissions: '0600'
+    owner: root:root
+
+%{ if ssl_chain_b64 != "" ~}
+  - content: "${ssl_chain_b64}"
+    path: /opt/vibestack-ansible/ssl-chain.b64
+    permissions: '0600'
+    owner: root:root
+%{ endif ~}
+
+  - content: |
+      SSL_ENABLED=true
+    path: /opt/vibestack-ansible/ssl-config.env
+    permissions: '0644'
+%{ endif ~}
+
+ssh_authorized_keys:
+%{ for key in split("\n", ssh_authorized_keys) ~}
+%{ if trimspace(key) != "" ~}
+  - ${trimspace(key)}
+%{ endif ~}
+%{ endfor ~}
+
+ssh_pwauth: false
+
+# All package installation happens AFTER DNS is working
 runcmd:
-  - echo 'Configuring root access for Coolify...'
-  - sed -i 's/^#*PermitRootLogin.*/PermitRootLogin without-password/' /etc/ssh/sshd_config
-  - systemctl restart sshd
-  - mkdir -p /root/.ssh
-  - chmod 700 /root/.ssh
-  - cp /home/ubuntu/.ssh/authorized_keys /root/.ssh/authorized_keys
-  - chmod 600 /root/.ssh/authorized_keys
-  - chown -R root:root /root/.ssh
-  - echo 'Root SSH access configured'
-  - echo 'Configuring UFW firewall for Coolify...'
-  - ufw allow 22/tcp comment 'SSH'
-  - ufw allow 80/tcp comment 'HTTP'
-  - ufw allow 443/tcp comment 'HTTPS'
-  - ufw allow 8000/tcp comment 'Coolify Web Interface'
-  - ufw allow 6001/tcp comment 'Coolify Real-time Communications'
-  - ufw allow 6002/tcp comment 'Coolify Terminal Access'
-  - ufw allow from 172.17.0.0/16 comment 'Docker network'
-  - ufw allow from 172.18.0.0/16 comment 'Docker network'
-  - ufw --force enable
-  - echo 'UFW firewall configured'
-  - echo 'Configuring DNS resolution...'
-  - echo 'nameserver 8.8.8.8' | tee /etc/resolv.conf
-  - echo 'nameserver 1.1.1.1' | tee -a /etc/resolv.conf
-  - systemctl restart systemd-resolved
+  # Ensure DNS is working
+  - cp /etc/resolv.conf.vibestack /etc/resolv.conf
+  - echo "Starting VibeStack setup at $(date)" >> /var/log/vibestack-setup.log
+
+  # Test DNS resolution before proceeding
+  - timeout 30 bash -c 'until nslookup ubuntu.com; do echo "Waiting for DNS..." >> /var/log/vibestack-setup.log; sleep 2; done'
+
+  # Wait for any automatic package management to complete
+  - |
+    echo "Waiting for automatic package management to complete..." >> /var/log/vibestack-setup.log
+    timeout 300 bash -c 'while sudo lsof /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do echo "Waiting for dpkg lock..." >> /var/log/vibestack-setup.log; sleep 5; done'
+    timeout 300 bash -c 'while sudo lsof /var/lib/apt/lists/lock >/dev/null 2>&1; do echo "Waiting for apt lock..." >> /var/log/vibestack-setup.log; sleep 5; done'
+    timeout 300 bash -c 'while sudo lsof /var/cache/apt/archives/lock >/dev/null 2>&1; do echo "Waiting for apt cache lock..." >> /var/log/vibestack-setup.log; sleep 5; done'
+    echo "Package management locks cleared" >> /var/log/vibestack-setup.log
+
+  # Now safely update packages with working DNS (with retries and lock checking)
+  - |
+    for i in $(seq 1 3); do
+      echo "Package update attempt $i" >> /var/log/vibestack-setup.log
+      if apt-get update; then
+        echo "Package update successful" >> /var/log/vibestack-setup.log
+        break
+      else
+        echo "Package update failed, waiting 10 seconds..." >> /var/log/vibestack-setup.log
+        sleep 10
+      fi
+    done
+  - |
+    for i in $(seq 1 3); do
+      echo "Package install attempt $i" >> /var/log/vibestack-setup.log
+      if apt-get install -y python3-pip git curl wget unzip software-properties-common resolvconf jq lsof; then
+        echo "Package install successful" >> /var/log/vibestack-setup.log
+        break
+      else
+        echo "Package install failed, waiting 15 seconds..." >> /var/log/vibestack-setup.log
+        sleep 15
+        # Clear any potential locks before retry
+        timeout 60 bash -c 'while sudo lsof /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 2; done' || true
+      fi
+    done
+
+  # Create ansible directory
+  - mkdir -p /opt/vibestack-ansible
+
+  # Download the latest playbook from GitHub (with retry)
+  - timeout 60 wget -O /tmp/complete-setup.yml https://raw.githubusercontent.com/evolv3ai/oci-cloudnative/main/coolify-complete-setup.yml || (sleep 10 && timeout 60 wget -O /tmp/complete-setup.yml https://raw.githubusercontent.com/evolv3ai/oci-cloudnative/main/coolify-complete-setup.yml)
+  - cp /tmp/complete-setup.yml /opt/vibestack-ansible/complete-setup.yml
+
+  # Install pip and ansible with proper paths and retries
+  - python3 -m pip install --upgrade pip || (sleep 5 && python3 -m pip install --upgrade pip)
   - sleep 5
-  - echo 'Installing Ansible and dependencies...'
-  - pip3 install --upgrade pip || apt-get update && apt-get install -y python3-pip
-  - pip3 install ansible || pip3 install --break-system-packages ansible
-  - pip3 install docker || pip3 install --break-system-packages docker
-  - sleep 10
-  - echo 'Installing Ansible collections...'
-  - /usr/local/bin/ansible-galaxy collection install community.general --force || ansible-galaxy collection install community.general --force
-  - /usr/local/bin/ansible-galaxy collection install community.docker --force || ansible-galaxy collection install community.docker --force
-  - /usr/local/bin/ansible-galaxy collection install ansible.posix --force || ansible-galaxy collection install ansible.posix --force
+  - pip3 install ansible docker || (sleep 5 && pip3 install ansible docker)
+  - sleep 5
+
+  # Install ansible collections (try both possible paths)
+  - /home/ubuntu/.local/bin/ansible-galaxy collection install community.general --force || /usr/local/bin/ansible-galaxy collection install community.general --force || ansible-galaxy collection install community.general --force
+  - /home/ubuntu/.local/bin/ansible-galaxy collection install community.docker --force || /usr/local/bin/ansible-galaxy collection install community.docker --force || ansible-galaxy collection install community.docker --force
+  - /home/ubuntu/.local/bin/ansible-galaxy collection install ansible.posix --force || /usr/local/bin/ansible-galaxy collection install ansible.posix --force || ansible-galaxy collection install ansible.posix --force
+
+  # Set proper permissions
   - chown -R ubuntu:ubuntu /opt/vibestack-ansible
-  - echo 'Ansible environment ready'
-  - echo 'Configuration files in /opt/vibestack-ansible/'
-  - echo 'To configure run cd /opt/vibestack-ansible && ansible-playbook coolify/install.yml'
 
-final_message: |
-  VibeStack Coolify server is ready!
+%{ if setup_custom_ssl ~}
+  # FIXED SSL PROCESSING FOR CLOUDFLARE ORIGIN CERTIFICATES
+  - |
+    if [ -f /opt/vibestack-ansible/ssl-cert.b64 ] && [ -f /opt/vibestack-ansible/ssl-key.b64 ]; then
+      echo "Processing Cloudflare Origin SSL certificates..." >> /var/log/vibestack-setup.log
+      TMP_DIR="/opt/vibestack-ansible"
+      CERT_B64="$TMP_DIR/ssl-cert.b64"
+      KEY_B64="$TMP_DIR/ssl-key.b64"
+      CHAIN_B64="$TMP_DIR/ssl-chain.b64"
+      TARGET_DIR="/data/coolify/proxy/certs"
+      CERT_TMP="$TMP_DIR/ssl.cert"
+      KEY_TMP="$TMP_DIR/ssl.key"
 
-  Next steps:
-  1. SSH into your server
-  2. Run: cd /opt/vibestack-ansible && ansible-playbook coolify/install.yml
-  3. Access Coolify at http://[YOUR-SERVER-IP]:8000
+      mkdir -p "$TARGET_DIR"
 
-  The server has been configured with Ansible and all necessary playbooks.
+      if base64 -d "$CERT_B64" > "$CERT_TMP" 2>>/var/log/vibestack-setup.log; then
+        echo "Certificate decoded successfully" >> /var/log/vibestack-setup.log
+      else
+        echo "ERROR: Failed to decode certificate" >> /var/log/vibestack-setup.log
+      fi
+
+      if base64 -d "$KEY_B64" > "$KEY_TMP" 2>>/var/log/vibestack-setup.log; then
+        echo "Private key decoded successfully" >> /var/log/vibestack-setup.log
+      else
+        echo "ERROR: Failed to decode private key" >> /var/log/vibestack-setup.log
+      fi
+
+      chmod 644 "$CERT_TMP" 2>/dev/null || true
+      chmod 600 "$KEY_TMP" 2>/dev/null || true
+
+      DOMAIN=""
+      SAN_ENTRY=$(openssl x509 -in "$CERT_TMP" -noout -ext subjectAltName 2>/dev/null | tr ',' '\n' | sed -n 's/^ *DNS://p' | head -1)
+      if [ -n "$SAN_ENTRY" ]; then
+        case "$SAN_ENTRY" in
+          \*.*) DOMAIN=${SAN_ENTRY#*.} ;;
+          *) DOMAIN=$SAN_ENTRY ;;
+        esac
+      fi
+
+      if [ -z "$DOMAIN" ]; then
+        CN_ENTRY=$(openssl x509 -in "$CERT_TMP" -noout -subject 2>/dev/null | sed -n 's/.*CN=//p' | sed 's/,.*//')
+        if [ -n "$CN_ENTRY" ]; then
+          case "$CN_ENTRY" in
+            \*.*) DOMAIN=${CN_ENTRY#*.} ;;
+            *) DOMAIN=$CN_ENTRY ;;
+          esac
+        fi
+      fi
+
+      if [ -z "$DOMAIN" ]; then
+        DOMAIN="$(hostname)"
+        echo "Falling back to hostname for SSL domain" >> /var/log/vibestack-setup.log
+      fi
+
+      DOMAIN=$(printf "%s" "$DOMAIN" | tr -d '\r\n ')
+      CERT_DEST="$TARGET_DIR/$DOMAIN.cert"
+      KEY_DEST="$TARGET_DIR/$DOMAIN.key"
+
+      rm -f "$CERT_DEST" "$KEY_DEST"
+      mv "$CERT_TMP" "$CERT_DEST"
+      mv "$KEY_TMP" "$KEY_DEST"
+      chmod 644 "$CERT_DEST" 2>/dev/null || true
+      chmod 600 "$KEY_DEST" 2>/dev/null || true
+
+      echo "Certificate domain: $DOMAIN" >> /var/log/vibestack-setup.log
+
+      CHAIN_DEST=""
+      if [ -f "$CHAIN_B64" ]; then
+        CHAIN_TMP="$TMP_DIR/ssl-chain.cert"
+        if base64 -d "$CHAIN_B64" > "$CHAIN_TMP" 2>>/var/log/vibestack-setup.log; then
+          chmod 644 "$CHAIN_TMP" 2>/dev/null || true
+          CHAIN_DEST="$TARGET_DIR/$DOMAIN-fullchain.cert"
+          cat "$CERT_DEST" > "$CHAIN_DEST"
+          cat "$CHAIN_TMP" >> "$CHAIN_DEST"
+          chmod 644 "$CHAIN_DEST" 2>/dev/null || true
+        else
+          echo "WARNING: Failed to decode certificate chain" >> /var/log/vibestack-setup.log
+        fi
+        rm -f "$CHAIN_TMP"
+      fi
+
+      if openssl x509 -in "$CERT_DEST" -noout 2>/dev/null; then
+        echo "SSL certificate is valid" >> /var/log/vibestack-setup.log
+      else
+        echo "ERROR: SSL certificate validation failed!" >> /var/log/vibestack-setup.log
+        openssl x509 -in "$CERT_DEST" -noout -text 2>&1 | head -20 >> /var/log/vibestack-setup.log
+      fi
+
+      if openssl pkey -in "$KEY_DEST" -noout 2>/dev/null; then
+        echo "SSL private key is valid" >> /var/log/vibestack-setup.log
+      else
+        echo "ERROR: SSL private key validation failed!" >> /var/log/vibestack-setup.log
+      fi
+
+      CERT_PUB=$(openssl x509 -in "$CERT_DEST" -noout -pubkey 2>/dev/null | openssl md5)
+      KEY_PUB=$(openssl pkey -in "$KEY_DEST" -pubout 2>/dev/null | openssl md5)
+      if [ -n "$CERT_PUB" ] && [ -n "$KEY_PUB" ] && [ "$CERT_PUB" = "$KEY_PUB" ]; then
+        echo "SSL certificate and key match verified" >> /var/log/vibestack-setup.log
+      else
+        echo "WARNING: Certificate and key may not match!" >> /var/log/vibestack-setup.log
+      fi
+
+      {
+        echo "SSL_ENABLED=true"
+        echo "SSL_DOMAIN=$DOMAIN"
+        echo "SSL_CERT_PATH=$CERT_DEST"
+        echo "SSL_KEY_PATH=$KEY_DEST"
+        if [ -n "$CHAIN_DEST" ]; then
+          echo "SSL_FULLCHAIN_PATH=$CHAIN_DEST"
+        fi
+      } > /opt/vibestack-ansible/ssl-config.env
+      chmod 644 /opt/vibestack-ansible/ssl-config.env
+
+      rm -f "$CERT_B64" "$KEY_B64" "$CHAIN_B64"
+
+      echo "SSL certificate processing complete" >> /var/log/vibestack-setup.log
+    else
+      echo "SSL certificate files not found, skipping SSL setup" >> /var/log/vibestack-setup.log
+    fi
+%{ endif ~}
+
+%{ if skip_ansible_execution ~}
+  # ANSIBLE TESTING MODE - Skipping automatic execution
+  - |
+    echo "=============================================" >> /var/log/vibestack-setup.log
+    echo "ANSIBLE TESTING MODE ENABLED" >> /var/log/vibestack-setup.log
+    echo "=============================================" >> /var/log/vibestack-setup.log
+    echo "Ansible has been installed but the playbook will NOT be executed automatically." >> /var/log/vibestack-setup.log
+    echo "" >> /var/log/vibestack-setup.log
+    echo "To run the Ansible playbook manually, SSH into the instance and run:" >> /var/log/vibestack-setup.log
+    echo "  cd /opt/vibestack-ansible" >> /var/log/vibestack-setup.log
+    echo "  ansible-playbook complete-setup.yml" >> /var/log/vibestack-setup.log
+    echo "" >> /var/log/vibestack-setup.log
+    echo "The playbook is located at: /opt/vibestack-ansible/complete-setup.yml" >> /var/log/vibestack-setup.log
+    echo "=============================================" >> /var/log/vibestack-setup.log
+
+  # Create a helper script for manual execution
+  - |
+    cat > /opt/vibestack-ansible/run-setup.sh << 'EOF'
+    #!/bin/bash
+    # Helper script to run the Ansible setup manually
+
+    cd /opt/vibestack-ansible
+
+    echo "Starting Ansible playbook execution..."
+    export ANSIBLE_LOG_PATH=/var/log/ansible-setup.log
+    export ANSIBLE_VERBOSITY=2
+
+    # Find ansible-playbook command
+    if command -v ansible-playbook >/dev/null 2>&1; then
+      ANSIBLE_CMD="ansible-playbook"
+    elif [ -x /home/ubuntu/.local/bin/ansible-playbook ]; then
+      ANSIBLE_CMD="/home/ubuntu/.local/bin/ansible-playbook"
+    elif [ -x /usr/local/bin/ansible-playbook ]; then
+      ANSIBLE_CMD="/usr/local/bin/ansible-playbook"
+    else
+      echo "ERROR: ansible-playbook not found!"
+      exit 1
+    fi
+
+    echo "Using ansible command: $ANSIBLE_CMD"
+
+    if $ANSIBLE_CMD complete-setup.yml; then
+      echo "Ansible playbook completed successfully"
+    else
+      echo "Ansible playbook failed with exit code $?"
+      echo "Check /var/log/ansible-setup.log for details"
+    fi
+    EOF
+    chmod +x /opt/vibestack-ansible/run-setup.sh
+    chown ubuntu:ubuntu /opt/vibestack-ansible/run-setup.sh
+
+%{ else ~}
+  # Final check: ensure no package management processes are running before Ansible
+  - |
+    echo "Final package management check before Ansible..." >> /var/log/vibestack-setup.log
+    timeout 120 bash -c 'while sudo lsof /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do echo "Waiting for final dpkg lock clear..." >> /var/log/vibestack-setup.log; sleep 3; done'
+    echo "All package locks cleared, starting Ansible..." >> /var/log/vibestack-setup.log
+
+  # Run the automation playbook with better error handling and verbose logging
+  - |
+    cd /opt/vibestack-ansible
+    export ANSIBLE_LOG_PATH=/var/log/ansible-setup.log
+    export ANSIBLE_VERBOSITY=2
+
+    # Try multiple ansible paths
+    if command -v ansible-playbook >/dev/null 2>&1; then
+      ANSIBLE_CMD="ansible-playbook"
+    elif [ -x /home/ubuntu/.local/bin/ansible-playbook ]; then
+      ANSIBLE_CMD="/home/ubuntu/.local/bin/ansible-playbook"
+    elif [ -x /usr/local/bin/ansible-playbook ]; then
+      ANSIBLE_CMD="/usr/local/bin/ansible-playbook"
+    else
+      echo "ERROR: ansible-playbook not found!" >> /var/log/vibestack-setup.log
+      exit 1
+    fi
+
+    echo "Using ansible command: $ANSIBLE_CMD" >> /var/log/vibestack-setup.log
+
+    if $ANSIBLE_CMD complete-setup.yml; then
+      echo "Ansible playbook completed successfully" >> /var/log/vibestack-setup.log
+    else
+      echo "Ansible playbook failed with exit code $?" >> /var/log/vibestack-setup.log
+      echo "Check /var/log/ansible-setup.log for details" >> /var/log/vibestack-setup.log
+      # Continue anyway - partial setup might be recoverable
+    fi
+%{ endif ~}
+
+  # Log completion
+  - echo "VibeStack Coolify setup completed at $(date)" >> /var/log/vibestack-setup.log
+
+final_message: "VibeStack Coolify setup completed. Check /var/log/vibestack-setup.log for details."
