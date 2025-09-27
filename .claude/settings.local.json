@@ -39,7 +39,8 @@
       "Bash(ansible-playbook:*)",
       "Bash(gh run list:*)",
       "Bash(curl:*)",
-      "Read(//home/kasm-user/.local/bin/**)"
+      "Read(//home/kasm-user/.local/bin/**)",
+      "Bash(gh release list:*)"
     ],
     "deny": [],
     "ask": []
