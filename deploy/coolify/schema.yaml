@@ -197,6 +197,27 @@ variables:
       eq:
         - enable_cloudflare_tunnel
         - true
+  enable_custom_ssl:
+    type: boolean
+    title: "Enable Cloudflare Origin Certificate"
+    description: "Deploy SSL certificate for HTTPS access to Coolify"
+    default: false
+  origin_certificate:
+    type: text
+    title: "Origin Certificate"
+    description: "Paste your Cloudflare Origin Certificate (PEM format)"
+    visible:
+      eq:
+        - enable_custom_ssl
+        - true
+  private_key:
+    type: password
+    title: "Private Key"
+    description: "Paste your certificate private key (PEM format)"
+    visible:
+      eq:
+        - enable_custom_ssl
+        - true
 
 outputs:
   compartment:

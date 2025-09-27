@@ -63,7 +63,6 @@ write_files:
 
   - content: |
       SSL_ENABLED=true
-      SSL_DOMAIN=${ssl_domain}
     path: /opt/vibestack-ansible/ssl-config.env
     permissions: '0644'
 %{ endif ~}

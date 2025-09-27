@@ -188,16 +188,23 @@
 
     - name: Deploy SSL Certificates to Coolify
       block:
-        - name: Read SSL configuration
-          slurp:
-            src: /opt/vibestack-ansible/ssl-config.env
-          register: ssl_config_content
+        - name: Extract domain from certificate
+          shell: |
+            # Extract the first subject alternative name (SAN) from the certificate
+            openssl x509 -in /opt/vibestack-ansible/ssl.cert -text -noout | grep -A1 "Subject Alternative Name" | tail -1 | sed 's/.*DNS:\*\.\([^,]*\).*/\1/' | head -1
+          register: cert_domain_result
           when: ssl_cert_file.stat.exists
+          failed_when: false
 
-        - name: Parse SSL domain
+        - name: Set SSL domain for wildcard certificates
           set_fact:
-            ssl_domain: "{{ (ssl_config_content.content | b64decode).split('\n') | select('match', '^SSL_DOMAIN=') | map('regex_replace', '^SSL_DOMAIN=(.+)$', '\\1') | first | default('') }}"
-          when: ssl_cert_file.stat.exists and ssl_config_content is defined
+            ssl_domain: "{{ cert_domain_result.stdout | trim }}"
+          when: ssl_cert_file.stat.exists and cert_domain_result.stdout != ""
+
+        - name: Fallback to hostname extraction if SAN not found
+          set_fact:
+            ssl_domain: "{{ ansible_hostname }}.local"
+          when: ssl_cert_file.stat.exists and (ssl_domain is not defined or ssl_domain == "")
 
         - name: Copy SSL certificate
           copy:
@@ -387,6 +394,10 @@
             tunnel_service: "{{ 'https://localhost:443' if traefik_running.rc == 0 else 'http://localhost:' + coolify_port }}"
             needs_tls_verify_skip: "{{ traefik_running.rc == 0 }}"
 
+        - name: Extract base domain for wildcard routing
+          set_fact:
+            base_domain: "{{ cloudflare_config.TUNNEL_HOSTNAME.split('.')[1:] | join('.') }}"
+
         - name: Create tunnel configuration
           copy:
             content: |
@@ -394,8 +405,9 @@
               credentials-file: /etc/cloudflared/{{ tunnel_id }}.json
 
               ingress:
-                - hostname: {{ cloudflare_config.TUNNEL_HOSTNAME }}
+                - hostname: "*.{{ base_domain }}"
                   service: {{ tunnel_service }}
+                  path: "*"
                   originRequest:
                     noTLSVerify: {{ needs_tls_verify_skip }}
                     connectTimeout: 30s
@@ -403,17 +415,14 @@
                     tcpKeepAlive: 30s
                     keepAliveConnections: 10
                     keepAliveTimeout: 90s
-                    httpHostHeader: {{ cloudflare_config.TUNNEL_HOSTNAME }}
-                    originServerName: localhost
-                - hostname: {{ cloudflare_config.SSH_HOSTNAME | default('ssh.' + (cloudflare_config.TUNNEL_HOSTNAME.split('.')[1:] | join('.'))) }}
-                  service: ssh://localhost:22
+                    originServerName: {{ base_domain }}
                 - service: http_status:404
             dest: /etc/cloudflared/config.yml
             mode: '0644'
             owner: root
             group: root
 
-        - name: Configure tunnel remote settings (for Full TLS)
+        - name: Configure tunnel remote settings (for Full TLS with wildcard routing)
           uri:
             url: "https://api.cloudflare.com/client/v4/accounts/{{ cloudflare_config.CLOUDFLARE_ACCOUNT_ID }}/cfd_tunnel/{{ tunnel_id }}/configurations"
             method: PUT
@@ -424,22 +433,17 @@
             body:
               config:
                 ingress:
-                  - hostname: "{{ cloudflare_config.TUNNEL_HOSTNAME }}"
+                  - hostname: "*.{{ base_domain }}"
+                    path: "*"
                     service: "{{ tunnel_service }}"
                     originRequest:
                       noTLSVerify: "{{ needs_tls_verify_skip }}"
-                  - hostname: "*.{{ cloudflare_config.TUNNEL_HOSTNAME.split('.')[1:] | join('.') }}"
-                    service: "{{ tunnel_service }}"
-                    originRequest:
-                      noTLSVerify: "{{ needs_tls_verify_skip }}"
-                  - hostname: "{{ cloudflare_config.SSH_HOSTNAME | default('ssh.' + (cloudflare_config.TUNNEL_HOSTNAME.split('.')[1:] | join('.'))) }}"
-                    service: "ssh://localhost:22"
                   - service: "http_status:404"
             return_content: yes
           register: remote_config_result
           when: tunnel_id is defined and tunnel_id != ''
 
-        - name: Create DNS records
+        - name: Create wildcard DNS record
           uri:
             url: "https://api.cloudflare.com/client/v4/zones/{{ cloudflare_config.CLOUDFLARE_ZONE_ID }}/dns_records"
             method: POST
@@ -449,14 +453,11 @@
             body_format: json
             body:
               type: "CNAME"
-              name: "{{ item.name }}"
+              name: "*"
               content: "{{ tunnel_id }}.cfargotunnel.com"
               proxied: true
               ttl: 1
             return_content: yes
-          loop:
-            - { name: "{{ cloudflare_config.TUNNEL_HOSTNAME.split('.')[0] }}" }
-            - { name: "{{ cloudflare_config.SSH_HOSTNAME.split('.')[0] | default('ssh') }}" }
           failed_when: false  # DNS record might already exist
 
         - name: Create systemd service for cloudflared

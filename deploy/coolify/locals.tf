@@ -92,10 +92,10 @@ locals {
   # =============================================================================
 
   # Determine if custom SSL should be configured
-  setup_custom_ssl = var.enable_custom_ssl && var.ssl_certificate != "" && var.ssl_private_key != "" && var.ssl_domain != ""
+  setup_custom_ssl = var.enable_custom_ssl && var.origin_certificate != "" && var.private_key != ""
 
   # SSL certificate content (base64 encoded for safe transmission)
-  ssl_cert_b64 = local.setup_custom_ssl ? base64encode(var.ssl_certificate) : ""
-  ssl_key_b64 = local.setup_custom_ssl ? base64encode(var.ssl_private_key) : ""
-  ssl_chain_b64 = local.setup_custom_ssl && var.ssl_certificate_chain != "" ? base64encode(var.ssl_certificate_chain) : ""
+  ssl_cert_b64 = local.setup_custom_ssl ? base64encode(var.origin_certificate) : ""
+  ssl_key_b64 = local.setup_custom_ssl ? base64encode(var.private_key) : ""
+  ssl_chain_b64 = ""
 }

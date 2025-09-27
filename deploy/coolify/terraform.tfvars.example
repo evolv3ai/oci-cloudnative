@@ -32,13 +32,12 @@
 # ssh_hostname             = "ssh.yourdomain.com"  # Optional, auto-generated if not set
 
 # =============================================================================
-# OPTION 2: Custom SSL Certificate (For Cloudflare Origin certs or your own SSL)
+# OPTION 2: Cloudflare Origin Certificate
 # =============================================================================
 # enable_custom_ssl = true
-# ssl_domain        = "coolify.yourdomain.com"
 #
-# # Paste your certificate here (PEM format)
-# ssl_certificate = <<-EOT
+# # Paste your Cloudflare Origin Certificate here (PEM format)
+# origin_certificate = <<-EOT
 # -----BEGIN CERTIFICATE-----
 # MIIDtTCCAp2gAwIBAgIJAKe...
 # [Your certificate content here]
@@ -47,19 +46,10 @@
 # EOT
 #
 # # Paste your private key here (PEM format)
-# ssl_private_key = <<-EOT
+# private_key = <<-EOT
 # -----BEGIN PRIVATE KEY-----
 # MIIEvQIBADANBgkqhkiG9w0B...
 # [Your private key content here]
 # ...abc=
 # -----END PRIVATE KEY-----
-# EOT
-#
-# # Optional: Certificate chain/CA bundle
-# ssl_certificate_chain = <<-EOT
-# -----BEGIN CERTIFICATE-----
-# MIIDtTCCAp2gAwIBAgIJAKe...
-# [CA/intermediate certificates here]
-# ...123==
-# -----END CERTIFICATE-----
 # EOT
