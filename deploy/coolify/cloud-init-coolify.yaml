@@ -147,19 +147,43 @@ runcmd:
   - |
     if [ -f /opt/vibestack-ansible/ssl-cert.b64 ]; then
       echo "Processing SSL certificates..." >> /var/log/vibestack-setup.log
-      # Decode certificates
-      base64 -d /opt/vibestack-ansible/ssl-cert.b64 > /opt/vibestack-ansible/ssl.crt
-      base64 -d /opt/vibestack-ansible/ssl-key.b64 > /opt/vibestack-ansible/ssl.key
+      # Decode certificates with proper formatting
+      base64 -d /opt/vibestack-ansible/ssl-cert.b64 | fold -w 64 > /tmp/ssl.crt
+      base64 -d /opt/vibestack-ansible/ssl-key.b64 | fold -w 64 > /tmp/ssl.key
+
+      # Fix certificate formatting to ensure proper PEM structure
+      {
+        echo "-----BEGIN CERTIFICATE-----"
+        grep -v "BEGIN CERTIFICATE\|END CERTIFICATE" /tmp/ssl.crt | tr -d '\n' | fold -w 64
+        echo "-----END CERTIFICATE-----"
+      } > /opt/vibestack-ansible/ssl.cert
+
+      # Fix private key formatting
+      {
+        echo "-----BEGIN PRIVATE KEY-----"
+        grep -v "BEGIN PRIVATE KEY\|END PRIVATE KEY" /tmp/ssl.key | tr -d '\n' | fold -w 64
+        echo "-----END PRIVATE KEY-----"
+      } > /opt/vibestack-ansible/ssl.key
+
+      # Handle certificate chain if provided
       if [ -f /opt/vibestack-ansible/ssl-chain.b64 ]; then
-        base64 -d /opt/vibestack-ansible/ssl-chain.b64 > /opt/vibestack-ansible/ssl-chain.crt
+        base64 -d /opt/vibestack-ansible/ssl-chain.b64 | fold -w 64 > /tmp/ssl-chain.crt
+        {
+          echo "-----BEGIN CERTIFICATE-----"
+          grep -v "BEGIN CERTIFICATE\|END CERTIFICATE" /tmp/ssl-chain.crt | tr -d '\n' | fold -w 64
+          echo "-----END CERTIFICATE-----"
+        } > /opt/vibestack-ansible/ssl-chain.cert
+        rm -f /tmp/ssl-chain.crt
       fi
+
       # Set proper permissions
-      chmod 644 /opt/vibestack-ansible/ssl.crt
+      chmod 644 /opt/vibestack-ansible/ssl.cert
       chmod 600 /opt/vibestack-ansible/ssl.key
-      [ -f /opt/vibestack-ansible/ssl-chain.crt ] && chmod 644 /opt/vibestack-ansible/ssl-chain.crt
-      # Clean up base64 files
-      rm -f /opt/vibestack-ansible/*.b64
-      echo "SSL certificates processed successfully" >> /var/log/vibestack-setup.log
+      [ -f /opt/vibestack-ansible/ssl-chain.cert ] && chmod 644 /opt/vibestack-ansible/ssl-chain.cert
+
+      # Clean up temporary and base64 files
+      rm -f /opt/vibestack-ansible/*.b64 /tmp/ssl.crt /tmp/ssl.key
+      echo "SSL certificates processed successfully with proper formatting" >> /var/log/vibestack-setup.log
     fi
 %{ endif ~}
 

@@ -128,11 +128,11 @@ EOT
 
 ### Certificate Locations on Server
 
-- `/opt/vibestack-ansible/ssl.crt` - Certificate (temporary)
+- `/opt/vibestack-ansible/ssl.cert` - Certificate (temporary)
 - `/opt/vibestack-ansible/ssl.key` - Private key (temporary)
-- `/data/coolify/proxy/certs/{domain}.crt` - Final certificate location
+- `/data/coolify/proxy/certs/{domain}.cert` - Final certificate location
 - `/data/coolify/proxy/certs/{domain}.key` - Final private key location
-- `/data/coolify/proxy/certs/{domain}-fullchain.crt` - Full certificate chain
+- `/data/coolify/proxy/certs/{domain}-fullchain.cert` - Full certificate chain
 
 ## Verification
 
@@ -166,7 +166,7 @@ sudo ls -la /data/coolify/proxy/certs/
 
 2. **Verify certificate validity:**
 ```bash
-openssl x509 -in /data/coolify/proxy/certs/yourdomain.crt -text -noout
+openssl x509 -in /data/coolify/proxy/certs/yourdomain.cert -text -noout
 ```
 
 3. **Check Coolify logs:**
@@ -205,7 +205,7 @@ ssh ubuntu@your-server-ip
 
 2. **Update certificate files:**
 ```bash
-sudo vim /data/coolify/proxy/certs/yourdomain.crt
+sudo vim /data/coolify/proxy/certs/yourdomain.cert
 sudo vim /data/coolify/proxy/certs/yourdomain.key
 ```
 

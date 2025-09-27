@@ -183,7 +183,7 @@
 
     - name: Check if SSL certificates are provided
       stat:
-        path: /opt/vibestack-ansible/ssl.crt
+        path: /opt/vibestack-ansible/ssl.cert
       register: ssl_cert_file
 
     - name: Deploy SSL Certificates to Coolify
@@ -201,8 +201,8 @@
 
         - name: Copy SSL certificate
           copy:
-            src: /opt/vibestack-ansible/ssl.crt
-            dest: /data/coolify/proxy/certs/{{ ssl_domain }}.crt
+            src: /opt/vibestack-ansible/ssl.cert
+            dest: /data/coolify/proxy/certs/{{ ssl_domain }}.cert
             mode: '0644'
             owner: root
             group: root
@@ -219,14 +219,14 @@
 
         - name: Check for certificate chain
           stat:
-            path: /opt/vibestack-ansible/ssl-chain.crt
+            path: /opt/vibestack-ansible/ssl-chain.cert
           register: ssl_chain_file
 
         - name: Create full certificate chain if available
           shell: |
-            cat /data/coolify/proxy/certs/{{ ssl_domain }}.crt > /data/coolify/proxy/certs/{{ ssl_domain }}-fullchain.crt
-            if [ -f /opt/vibestack-ansible/ssl-chain.crt ]; then
-              cat /opt/vibestack-ansible/ssl-chain.crt >> /data/coolify/proxy/certs/{{ ssl_domain }}-fullchain.crt
+            cat /data/coolify/proxy/certs/{{ ssl_domain }}.cert > /data/coolify/proxy/certs/{{ ssl_domain }}-fullchain.cert
+            if [ -f /opt/vibestack-ansible/ssl-chain.cert ]; then
+              cat /opt/vibestack-ansible/ssl-chain.cert >> /data/coolify/proxy/certs/{{ ssl_domain }}-fullchain.cert
             fi
           when: ssl_cert_file.stat.exists and ssl_domain is defined
 
