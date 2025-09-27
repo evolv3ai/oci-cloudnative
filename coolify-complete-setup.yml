@@ -30,6 +30,10 @@
         update_cache: yes
         upgrade: dist
         cache_valid_time: 3600
+      register: upgrade_packages_result
+      retries: 5
+      delay: 20
+      until: upgrade_packages_result is succeeded
 
     - name: Install required packages
       apt:
@@ -44,6 +48,10 @@
           - wget
           - python3-pip
         state: present
+      register: prerequisite_packages_result
+      retries: 5
+      delay: 20
+      until: prerequisite_packages_result is succeeded
 
     - name: Install Docker
       block:
@@ -75,6 +83,10 @@
             state: present
             update_cache: yes
           when: docker_check.rc != 0
+          register: docker_packages_result
+          retries: 5
+          delay: 20
+          until: docker_packages_result is succeeded
 
         - name: Start and enable Docker
           systemd:
@@ -118,7 +130,7 @@
         - name: Run Coolify installer with retries
           shell: |
             # Retry logic for Coolify installer
-            for attempt in {1..3}; do
+            for attempt in $(seq 1 3); do
               echo "Coolify installation attempt $attempt"
               if /tmp/install_coolify.sh; then
                 echo "Coolify installation successful"
@@ -181,65 +193,125 @@
     # SSL CERTIFICATE SETUP (Alternative to Cloudflare Tunnel)
     # =============================================================================
 
-    - name: Check if SSL certificates are provided
+    - name: Check for SSL configuration metadata
       stat:
-        path: /opt/vibestack-ansible/ssl.cert
+        path: /opt/vibestack-ansible/ssl-config.env
+      register: ssl_config_file
+
+    - name: Load SSL metadata
+      set_fact:
+        ssl_metadata:
+          ssl_domain: "{{ lookup('ini', 'SSL_DOMAIN section=None file=/opt/vibestack-ansible/ssl-config.env', errors='ignore') }}"
+          ssl_cert_path: "{{ lookup('ini', 'SSL_CERT_PATH section=None file=/opt/vibestack-ansible/ssl-config.env', errors='ignore') }}"
+          ssl_key_path: "{{ lookup('ini', 'SSL_KEY_PATH section=None file=/opt/vibestack-ansible/ssl-config.env', errors='ignore') }}"
+          ssl_fullchain_path: "{{ lookup('ini', 'SSL_FULLCHAIN_PATH section=None file=/opt/vibestack-ansible/ssl-config.env', errors='ignore') }}"
+      when: ssl_config_file.stat.exists
+
+    - name: Check if SSL certificate exists
+      stat:
+        path: "{{ (ssl_metadata | default({})).ssl_cert_path }}"
       register: ssl_cert_file
+      when: (ssl_metadata | default({})).ssl_cert_path | default('') != ''
+
+    - name: Check if SSL key exists
+      stat:
+        path: "{{ (ssl_metadata | default({})).ssl_key_path }}"
+      register: ssl_key_file
+      when: (ssl_metadata | default({})).ssl_key_path | default('') != ''
 
     - name: Deploy SSL Certificates to Coolify
       block:
-        - name: Extract domain from certificate
-          shell: |
-            # Extract the first subject alternative name (SAN) from the certificate
-            openssl x509 -in /opt/vibestack-ansible/ssl.cert -text -noout | grep -A1 "Subject Alternative Name" | tail -1 | sed 's/.*DNS:\*\.\([^,]*\).*/\1/' | head -1
-          register: cert_domain_result
-          when: ssl_cert_file.stat.exists
+        - name: Extract SAN from certificate
+          command: openssl x509 -in {{ (ssl_metadata | default({})).ssl_cert_path }} -noout -ext subjectAltName
+          register: ssl_san_result
+          changed_when: false
           failed_when: false
 
-        - name: Set SSL domain for wildcard certificates
-          set_fact:
-            ssl_domain: "{{ cert_domain_result.stdout | trim }}"
-          when: ssl_cert_file.stat.exists and cert_domain_result.stdout != ""
+        - name: Extract subject from certificate
+          command: openssl x509 -in {{ (ssl_metadata | default({})).ssl_cert_path }} -noout -subject
+          register: ssl_subject_result
+          changed_when: false
+          failed_when: false
 
-        - name: Fallback to hostname extraction if SAN not found
+        - name: Prepare SSL metadata values
           set_fact:
-            ssl_domain: "{{ ansible_hostname }}.local"
-          when: ssl_cert_file.stat.exists and (ssl_domain is not defined or ssl_domain == "")
+            ssl_metadata_domain: "{{ (ssl_metadata | default({})).ssl_domain | default('') }}"
+            ssl_cert_path: "{{ (ssl_metadata | default({})).ssl_cert_path | default('') }}"
+            ssl_key_path: "{{ (ssl_metadata | default({})).ssl_key_path | default('') }}"
+            ssl_fullchain_path: "{{ (ssl_metadata | default({})).ssl_fullchain_path | default('') }}"
 
-        - name: Copy SSL certificate
-          copy:
-            src: /opt/vibestack-ansible/ssl.cert
-            dest: /data/coolify/proxy/certs/{{ ssl_domain }}.cert
+        - name: Determine SSL domain
+          set_fact:
+            ssl_domain: >-
+              {{
+                (ssl_metadata_domain | default('') | length > 0)
+                | ternary(
+                    ssl_metadata_domain | regex_replace('^\*\.', ''),
+                    (
+                      (ssl_san_result.stdout | default('') | regex_search('DNS:([^,\s]+)', '\1'))
+                      | default(ssl_subject_result.stdout | default('') | regex_search('CN=([^,\\/]+)', '\1'))
+                      | default(ansible_hostname ~ '.local')
+                    )
+                    | regex_replace('^\*\.', '')
+                  )
+              }}
+
+        - name: Ensure SSL certificate permissions
+          file:
+            path: "{{ ssl_cert_path }}"
             mode: '0644'
             owner: root
             group: root
-          when: ssl_cert_file.stat.exists and ssl_domain is defined
+          when: ssl_cert_path | default('') | length > 0
 
-        - name: Copy SSL private key
-          copy:
-            src: /opt/vibestack-ansible/ssl.key
-            dest: /data/coolify/proxy/certs/{{ ssl_domain }}.key
+        - name: Ensure SSL private key permissions
+          file:
+            path: "{{ ssl_key_path }}"
             mode: '0600'
             owner: root
             group: root
-          when: ssl_cert_file.stat.exists and ssl_domain is defined
+          when: ssl_key_path | default('') | length > 0
 
-        - name: Check for certificate chain
+        - name: Detect auto-generated fullchain certificate
           stat:
-            path: /opt/vibestack-ansible/ssl-chain.cert
-          register: ssl_chain_file
+            path: "/data/coolify/proxy/certs/{{ ssl_domain }}-fullchain.cert"
+          register: ssl_auto_fullchain
+          when: ssl_fullchain_path | length == 0
 
-        - name: Create full certificate chain if available
-          shell: |
-            cat /data/coolify/proxy/certs/{{ ssl_domain }}.cert > /data/coolify/proxy/certs/{{ ssl_domain }}-fullchain.cert
-            if [ -f /opt/vibestack-ansible/ssl-chain.cert ]; then
-              cat /opt/vibestack-ansible/ssl-chain.cert >> /data/coolify/proxy/certs/{{ ssl_domain }}-fullchain.cert
-            fi
-          when: ssl_cert_file.stat.exists and ssl_domain is defined
+        - name: Record detected fullchain certificate path
+          set_fact:
+            ssl_fullchain_path: "/data/coolify/proxy/certs/{{ ssl_domain }}-fullchain.cert"
+          when: ssl_fullchain_path | length == 0 and ssl_auto_fullchain.stat.exists
+
+        - name: Check SSL fullchain exists
+          stat:
+            path: "{{ ssl_fullchain_path }}"
+          register: ssl_fullchain_file
+          when: ssl_fullchain_path | length > 0
+
+        - name: Ensure SSL fullchain permissions
+          file:
+            path: "{{ ssl_fullchain_path }}"
+            mode: '0644'
+            owner: root
+            group: root
+          when: ssl_fullchain_path | length > 0 and ssl_fullchain_file.stat.exists | default(false)
+
+        - name: Remove staged SSL files in /opt
+          file:
+            path: "{{ item }}"
+            state: absent
+          loop:
+            - /opt/vibestack-ansible/ssl.cert
+            - /opt/vibestack-ansible/ssl.key
+            - /opt/vibestack-ansible/ssl-chain.cert
+            - /opt/vibestack-ansible/ssl-cert.b64
+            - /opt/vibestack-ansible/ssl-key.b64
+            - /opt/vibestack-ansible/ssl-chain.b64
 
         - name: Restart Coolify to apply SSL certificates
           shell: docker restart coolify 2>/dev/null || true
-          when: ssl_cert_file.stat.exists
+          changed_when: false
 
         - name: Check if Traefik needs configuration
           shell: docker ps --filter "name=coolify-proxy" --format "{{ '{{.Names}}' }}" | grep -q coolify-proxy
@@ -253,9 +325,12 @@
               echo "Traefik detected, SSL will be configured automatically"
               # Traefik automatically picks up certificates from /data/coolify/proxy/certs
             fi
-          when: ssl_cert_file.stat.exists and has_traefik.rc == 0
+          when: has_traefik.rc == 0
 
-      when: ssl_cert_file.stat.exists
+      when:
+        - (ssl_metadata | default({})).ssl_cert_path | default('') != ''
+        - ssl_cert_file.stat.exists | default(false)
+        - ssl_key_file.stat.exists | default(false)
 
     # =============================================================================
     # CLOUDFLARE TUNNEL SETUP (Conditional - only if credentials provided)
@@ -361,6 +436,37 @@
               when: tunnel_id is not defined or tunnel_id == ''
           when: tunnel_id is not defined or tunnel_id == ''
 
+        - name: Load existing tunnel credentials if secret is missing
+          block:
+            - name: Check for existing credential file
+              stat:
+                path: "/etc/cloudflared/{{ tunnel_id }}.json"
+              register: existing_credential_file
+
+            - name: Read existing credential file
+              slurp:
+                src: "/etc/cloudflared/{{ tunnel_id }}.json"
+              register: existing_credential_content
+              when: existing_credential_file.stat.exists
+
+            - name: Parse existing credential file
+              set_fact:
+                tunnel_secret: "{{ (existing_credential_content.content | b64decode | from_json).TunnelSecret | default('') }}"
+                cloudflare_account_tag: "{{ (existing_credential_content.content | b64decode | from_json).AccountTag | default('') }}"
+              when: existing_credential_file.stat.exists
+
+            - name: Merge account tag from credentials
+              set_fact:
+                cloudflare_config: "{{ cloudflare_config | combine({'CLOUDFLARE_ACCOUNT_ID': cloudflare_account_tag}) }}"
+              when: existing_credential_file.stat.exists and cloudflare_account_tag | default('') != ''
+
+          when: (tunnel_secret | default('')) == '' and (tunnel_id | default('')) != ''
+
+        - name: Abort when tunnel credentials remain unavailable
+          fail:
+            msg: "Cloudflare tunnel credentials missing; delete the tunnel or provide new credentials."
+          when: (tunnel_secret | default('')) == ''
+
         - name: Create cloudflared directory
           file:
             path: /etc/cloudflared
@@ -453,12 +559,15 @@
             body_format: json
             body:
               type: "CNAME"
-              name: "*"
+              name: "*.{{ base_domain }}"
               content: "{{ tunnel_id }}.cfargotunnel.com"
               proxied: true
               ttl: 1
             return_content: yes
           failed_when: false  # DNS record might already exist
+          when:
+            - cloudflare_config.CLOUDFLARE_ZONE_ID | default('') != ''
+            - base_domain | default('') != ''
 
         - name: Create systemd service for cloudflared
           copy:
