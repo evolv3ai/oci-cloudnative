@@ -211,9 +211,9 @@ variables:
         - enable_custom_ssl
         - true
   private_key:
-    type: password
+    type: text
     title: "Private Key"
-    description: "Paste your certificate private key (PEM format)"
+    description: "Paste your Cloudflare Origin Certificate private key (PEM format)"
     visible:
       eq:
         - enable_custom_ssl
