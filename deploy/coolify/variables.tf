@@ -46,6 +46,11 @@ variable "private_key_path" {
 variable "ssh_authorized_keys" {
   description = "One or more SSH public keys that should be added to the compute instances."
   type        = string
+
+  validation {
+    condition = can(regex("^(ssh-rsa AAAA[0-9A-Za-z+/]+[=]{0,3}( .+)?|ssh-ed25519 AAAA[0-9A-Za-z+/]+[=]{0,3}( .+)?|ecdsa-sha2-nistp256 AAAA[0-9A-Za-z+/]+[=]{0,3}( .+)?|ecdsa-sha2-nistp384 AAAA[0-9A-Za-z+/]+[=]{0,3}( .+)?|ecdsa-sha2-nistp521 AAAA[0-9A-Za-z+/]+[=]{0,3}( .+)?)$", var.ssh_authorized_keys))
+    error_message = "SSH public key must be in valid OpenSSH format (ssh-rsa, ssh-ed25519, or ecdsa-sha2-*). Example: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGbPhiQgg... user@hostname'"
+  }
 }
 
 variable "instance_shape" {

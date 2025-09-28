@@ -48,7 +48,8 @@
       "mcp__ssh-mcp__exec",
       "mcp__ht-mcp__ht_create_session",
       "mcp__ht-mcp__ht_take_snapshot",
-      "mcp__ht-mcp__ht_send_keys"
+      "mcp__ht-mcp__ht_send_keys",
+      "Read(//usr/**)"
     ],
     "deny": [],
     "ask": []
