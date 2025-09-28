@@ -205,3 +205,28 @@ variable "skip_ansible_execution" {
   type        = bool
   default     = false
 }
+
+# =============================================================================
+# COOLIFY ROOT USER CONFIGURATION
+# =============================================================================
+
+variable "coolify_root_username" {
+  description = "Root username for Coolify admin access"
+  type        = string
+  default     = "admin"
+
+  validation {
+    condition     = can(regex("^[a-zA-Z0-9_-]{3,30}$", var.coolify_root_username))
+    error_message = "Username must be 3-30 characters long and contain only letters, numbers, hyphens, and underscores."
+  }
+}
+
+variable "coolify_root_user_email" {
+  description = "Email address for the Coolify root user (required)"
+  type        = string
+
+  validation {
+    condition     = can(regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$", var.coolify_root_user_email))
+    error_message = "Must be a valid email address format."
+  }
+}

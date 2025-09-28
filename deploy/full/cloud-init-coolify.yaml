@@ -36,6 +36,15 @@ write_files:
     path: /opt/vibestack-ansible/.env
     permissions: '0644'
 
+  # Coolify root user configuration
+  - content: |
+      COOLIFY_ROOT_USERNAME=${coolify_root_username}
+      COOLIFY_ROOT_EMAIL=${coolify_root_email}
+      COOLIFY_ROOT_PASSWORD=${coolify_root_password}
+    path: /opt/vibestack-ansible/coolify-root-user.env
+    permissions: '0600'
+    owner: root:root
+
 %{ if setup_custom_ssl ~}
   # SSL Certificate Files (base64 encoded for safe transmission)
   - content: "${ssl_cert_b64}"

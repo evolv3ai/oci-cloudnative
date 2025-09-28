@@ -152,15 +152,18 @@
             timeout: 60
             delay: 10
 
-        - name: Download Coolify installer
-          shell: |
-            curl -fsSL https://cdn.coollabs.io/coolify/install.sh -o /tmp/install_coolify.sh
-            chmod +x /tmp/install_coolify.sh
-          args:
-            creates: /tmp/install_coolify.sh
-          when: coolify_check_result.rc != 0
-          retries: 3
-          delay: 10
+        # COMMENTED OUT: Download Coolify installer
+        # NOTE: Now using direct curl in installation step with environment variables
+        #
+        # - name: Download Coolify installer
+        #   shell: |
+        #     curl -fsSL https://cdn.coollabs.io/coolify/install.sh -o /tmp/install_coolify.sh
+        #     chmod +x /tmp/install_coolify.sh
+        #   args:
+        #     creates: /tmp/install_coolify.sh
+        #   when: coolify_check_result.rc != 0
+        #   retries: 3
+        #   delay: 10
 
         - name: Wait for any package management locks before Coolify install
           shell: |
@@ -173,10 +176,19 @@
 
         - name: Run Coolify installer with retries
           shell: |
-            # Retry logic for Coolify installer
+            # Source the Coolify root user credentials
+            if [ -f /opt/vibestack-ansible/coolify-root-user.env ]; then
+              source /opt/vibestack-ansible/coolify-root-user.env
+              export ROOT_USERNAME="$COOLIFY_ROOT_USERNAME"
+              export ROOT_USER_EMAIL="$COOLIFY_ROOT_EMAIL"
+              export ROOT_USER_PASSWORD="$COOLIFY_ROOT_PASSWORD"
+              echo "Coolify credentials loaded for installation"
+            fi
+
+            # Retry logic for Coolify installer with environment variables
             for attempt in $(seq 1 3); do
               echo "Coolify installation attempt $attempt"
-              if /tmp/install_coolify.sh; then
+              if env ROOT_USERNAME="$ROOT_USERNAME" ROOT_USER_EMAIL="$ROOT_USER_EMAIL" ROOT_USER_PASSWORD="$ROOT_USER_PASSWORD" bash -c 'curl -fsSL https://cdn.coollabs.io/coolify/install.sh | bash'; then
                 echo "Coolify installation successful"
                 exit 0
               else
@@ -803,6 +815,123 @@
           {% endif %}
         dest: /opt/vibestack-ansible/deployment-success.txt
         mode: '0644'
+
+    # =============================================================================
+    # COOLIFY ROOT USER CONFIGURATION
+    # =============================================================================
+
+    # COMMENTED OUT: Configure Coolify root user credentials
+    # NOTE: Credentials are now set during installation via environment variables
+    # Keeping this code for potential database modifications later
+    #
+    # - name: Configure Coolify root user credentials
+    #   block:
+    #     - name: Check for Coolify root user configuration
+    #       stat:
+    #         path: /opt/vibestack-ansible/coolify-root-user.env
+    #       register: coolify_root_config
+    #
+    #     - name: Load Coolify root user credentials
+    #       shell: |
+    #         if [ -f /opt/vibestack-ansible/coolify-root-user.env ]; then
+    #           source /opt/vibestack-ansible/coolify-root-user.env
+    #           echo "ROOT_USERNAME=$COOLIFY_ROOT_USERNAME"
+    #           echo "ROOT_EMAIL=$COOLIFY_ROOT_EMAIL"
+    #           echo "ROOT_PASSWORD=$COOLIFY_ROOT_PASSWORD"
+    #         fi
+    #       register: coolify_credentials
+    #       when: coolify_root_config.stat.exists
+    #
+    #     - name: Backup existing Coolify .env file
+    #       shell: |
+    #         if [ -f /data/coolify/source/.env ]; then
+    #           cp /data/coolify/source/.env /opt/vibestack-ansible/coolify.env.backup.$(date +%Y%m%d_%H%M%S)
+    #           echo "Backup created"
+    #         else
+    #           echo "No .env file to backup"
+    #         fi
+    #       when: coolify_root_config.stat.exists
+    #
+    #     - name: Update Coolify root user credentials in .env
+    #       shell: |
+    #         if [ -f /data/coolify/source/.env ] && [ -f /opt/vibestack-ansible/coolify-root-user.env ]; then
+    #           # Source the credentials
+    #           source /opt/vibestack-ansible/coolify-root-user.env
+    #
+    #           # Update or add ROOT_USERNAME
+    #           if grep -q "^ROOT_USERNAME=" /data/coolify/source/.env; then
+    #             sed -i "s|^ROOT_USERNAME=.*|ROOT_USERNAME=$COOLIFY_ROOT_USERNAME|" /data/coolify/source/.env
+    #           else
+    #             echo "ROOT_USERNAME=$COOLIFY_ROOT_USERNAME" >> /data/coolify/source/.env
+    #           fi
+    #
+    #           # Update or add ROOT_USER_EMAIL
+    #           if grep -q "^ROOT_USER_EMAIL=" /data/coolify/source/.env; then
+    #             sed -i "s|^ROOT_USER_EMAIL=.*|ROOT_USER_EMAIL=$COOLIFY_ROOT_EMAIL|" /data/coolify/source/.env
+    #           else
+    #             echo "ROOT_USER_EMAIL=$COOLIFY_ROOT_EMAIL" >> /data/coolify/source/.env
+    #           fi
+    #
+    #           # Update or add ROOT_USER_PASSWORD (using printf to handle special characters safely)
+    #           if grep -q "^ROOT_USER_PASSWORD=" /data/coolify/source/.env; then
+    #             # Remove existing line and add new one to avoid sed special character issues
+    #             grep -v "^ROOT_USER_PASSWORD=" /data/coolify/source/.env > /tmp/coolify_env_temp
+    #             printf "ROOT_USER_PASSWORD=%s\n" "$COOLIFY_ROOT_PASSWORD" >> /tmp/coolify_env_temp
+    #             mv /tmp/coolify_env_temp /data/coolify/source/.env
+    #           else
+    #             printf "ROOT_USER_PASSWORD=%s\n" "$COOLIFY_ROOT_PASSWORD" >> /data/coolify/source/.env
+    #           fi
+    #
+    #           echo "Coolify root user credentials updated"
+    #         else
+    #           echo "Missing required files for credential update"
+    #         fi
+    #       when: coolify_root_config.stat.exists
+    #       register: update_credentials_result
+    #
+    #     - name: Restart Coolify container to apply new credentials
+    #       shell: |
+    #         docker restart coolify
+    #         sleep 10  # Wait for container to restart
+    #         echo "Coolify restarted with new credentials"
+    #       when: coolify_root_config.stat.exists and update_credentials_result.changed
+    #
+    #     - name: Save Coolify access credentials
+    #       copy:
+    #         content: |
+    #           # Coolify Admin Access Credentials
+    #           # Generated: {{ ansible_date_time.iso8601 }}
+    #
+    #           Username: {{ coolify_credentials.stdout_lines[0].split('=')[1] | default('admin') }}
+    #           Email: {{ coolify_credentials.stdout_lines[1].split('=')[1] | default('') }}
+    #           Password: {{ coolify_credentials.stdout_lines[2].split('=')[1] | default('') }}
+    #
+    #           Note: Keep these credentials secure. They provide admin access to your Coolify instance.
+    #         dest: /opt/vibestack-ansible/coolify-credentials.txt
+    #         mode: '0600'
+    #         owner: root
+    #         group: root
+    #       when: coolify_root_config.stat.exists
+
+    # Save Coolify access credentials (simplified version)
+    - name: Save Coolify access credentials to file
+      shell: |
+        if [ -f /opt/vibestack-ansible/coolify-root-user.env ]; then
+          source /opt/vibestack-ansible/coolify-root-user.env
+          cat > /opt/vibestack-ansible/coolify-credentials.txt << EOF
+# Coolify Admin Access Credentials
+# Generated: $(date -Iseconds)
+# Credentials set during installation via environment variables
+
+Username: $COOLIFY_ROOT_USERNAME
+Email: $COOLIFY_ROOT_EMAIL
+Password: $COOLIFY_ROOT_PASSWORD
+
+Note: Keep these credentials secure. They provide admin access to your Coolify instance.
+EOF
+          chmod 600 /opt/vibestack-ansible/coolify-credentials.txt
+          echo "Credentials saved to coolify-credentials.txt"
+        fi
 
     - name: Display final setup information
       debug:

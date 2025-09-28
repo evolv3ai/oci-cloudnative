@@ -1,3 +1,13 @@
+# Random password for Coolify root user
+resource "random_password" "coolify_root_password" {
+  length          = 24
+  special         = true
+  override_special = "!^&*"
+  upper           = true
+  lower           = true
+  numeric         = true
+}
+
 locals {
   trimmed_label = trimspace(var.deployment_label)
   suffix        = local.trimmed_label == "" ? "" : "-${local.trimmed_label}"
@@ -53,4 +63,13 @@ locals {
   )
 
   is_flexible_shape = can(regex("Flex$", var.instance_shape))
+
+  # =============================================================================
+  # COOLIFY ROOT USER CONFIGURATION
+  # =============================================================================
+
+  # Coolify root user credentials
+  coolify_root_username = var.coolify_root_username
+  coolify_root_email    = var.coolify_root_user_email
+  coolify_root_password = random_password.coolify_root_password.result
 }

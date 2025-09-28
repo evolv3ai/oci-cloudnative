@@ -30,6 +30,9 @@ resource "oci_core_instance" "coolify" {
       ssl_key_b64            = local.ssl_key_b64
       ssl_chain_b64          = local.ssl_chain_b64
       skip_ansible_execution = var.skip_ansible_execution
+      coolify_root_username  = local.coolify_root_username
+      coolify_root_email     = local.coolify_root_email
+      coolify_root_password  = local.coolify_root_password
     }))
   }
 
