@@ -7,20 +7,12 @@ resource "random_string" "tunnel_suffix" {
 
 # Random password for Coolify root user
 resource "random_password" "coolify_root_password" {
-<<<<<<< HEAD
   length          = 24
   special         = true
   override_special = "!^&*"
   upper           = true
   lower           = true
   numeric         = true
-=======
-  length  = 24
-  special = true
-  upper   = true
-  lower   = true
-  numeric = true
->>>>>>> 6b0dc835b9b94fb4356fb72d81130fab76285d93
 }
 
 locals {
