@@ -918,17 +918,17 @@
       shell: |
         if [ -f /opt/vibestack-ansible/coolify-root-user.env ]; then
           source /opt/vibestack-ansible/coolify-root-user.env
-          cat > /opt/vibestack-ansible/coolify-credentials.txt << EOF
-# Coolify Admin Access Credentials
-# Generated: $(date -Iseconds)
-# Credentials set during installation via environment variables
-
-Username: $COOLIFY_ROOT_USERNAME
-Email: $COOLIFY_ROOT_EMAIL
-Password: $COOLIFY_ROOT_PASSWORD
-
-Note: Keep these credentials secure. They provide admin access to your Coolify instance.
-EOF
+          {
+            echo "# Coolify Admin Access Credentials"
+            echo "# Generated: $(date -Iseconds)"
+            echo "# Credentials set during installation via environment variables"
+            echo ""
+            echo "Username: $COOLIFY_ROOT_USERNAME"
+            echo "Email: $COOLIFY_ROOT_EMAIL"
+            echo "Password: $COOLIFY_ROOT_PASSWORD"
+            echo ""
+            echo "Note: Keep these credentials secure. They provide admin access to your Coolify instance."
+          } > /opt/vibestack-ansible/coolify-credentials.txt
           chmod 600 /opt/vibestack-ansible/coolify-credentials.txt
           echo "Credentials saved to coolify-credentials.txt"
         fi

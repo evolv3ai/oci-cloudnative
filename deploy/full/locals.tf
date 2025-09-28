@@ -1,11 +1,12 @@
 # Random password for Coolify root user
 resource "random_password" "coolify_root_password" {
-  length          = 24
-  special         = true
+  length           = 24
+  special          = true
   override_special = "!^&*"
-  upper           = true
-  lower           = true
-  numeric         = true
+  min_special      = 1
+  upper            = true
+  lower            = true
+  numeric          = true
 }
 
 locals {
