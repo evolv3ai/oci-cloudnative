@@ -24,6 +24,10 @@
 # Ansible testing mode (set to true to skip automatic playbook execution)
 # skip_ansible_execution = false
 
+# Coolify root user configuration
+# coolify_root_username = "admin"
+coolify_root_user_email = "admin@example.com"  # REQUIRED - Change to your email
+
 # =============================================================================
 # OPTION 1: Cloudflare Tunnel Configuration (Recommended for full automation)
 # =============================================================================

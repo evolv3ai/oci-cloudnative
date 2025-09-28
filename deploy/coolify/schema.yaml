@@ -120,6 +120,18 @@ variables:
     description: "Extra TCP ports that should be opened to the internet for the Coolify server."
     items:
       type: integer
+  coolify_root_username:
+    type: string
+    title: "Coolify Admin Username"
+    description: "Username for the Coolify admin account"
+    default: "admin"
+    pattern: "^[a-zA-Z0-9_-]{3,30}$"
+  coolify_root_user_email:
+    type: string
+    title: "Coolify Admin Email"
+    description: "Email address for the Coolify admin account (required)"
+    required: true
+    pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
   assign_public_ip:
     type: boolean
     title: "Assign public IP addresses"
