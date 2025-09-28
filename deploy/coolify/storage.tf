@@ -6,8 +6,9 @@ resource "oci_core_volume" "coolify_data" {
   display_name        = "coolify-data${local.suffix}"
   size_in_gbs         = var.coolify_block_volume_size_in_gbs
 
-  # VPUs (Volume Performance Units) - 0 for Always Free tier (Basic performance)
-  vpus_per_gb         = "0"
+  # For Always Free tier, vpus_per_gb must be null (not specified) or 10
+  # 10 VPUs is the minimum for balanced performance
+  vpus_per_gb = 10
 }
 
 resource "oci_core_volume_attachment" "coolify" {
