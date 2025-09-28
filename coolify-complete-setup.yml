@@ -281,13 +281,13 @@
                   mkdir -p /data/coolify/proxy/dynamic
 
                   # Create Traefik dynamic configuration
-                  cat > /data/coolify/proxy/dynamic/cloudflare-origin-certs.yaml << EOF
+                  cat > /data/coolify/proxy/dynamic/cloudflare-origin-certs.yaml << 'EOFTRAEFIK'
                 tls:
                   certificates:
                     -
                       certFile: /data/coolify/proxy/certs/${SSL_DOMAIN}.cert
                       keyFile: /data/coolify/proxy/certs/${SSL_DOMAIN}.key
-                EOF
+                EOFTRAEFIK
 
                   # Set proper permissions
                   chmod 644 /data/coolify/proxy/dynamic/cloudflare-origin-certs.yaml
