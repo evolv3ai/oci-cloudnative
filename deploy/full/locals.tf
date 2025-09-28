@@ -2,7 +2,7 @@
 resource "random_password" "coolify_root_password" {
   length           = 24
   special          = true
-  override_special = "!^&*"
+  override_special = "!^*"
   min_special      = 1
   upper            = true
   lower            = true

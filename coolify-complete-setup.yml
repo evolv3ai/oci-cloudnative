@@ -176,19 +176,19 @@
 
         - name: Run Coolify installer with retries
           shell: |
-            # Source the Coolify root user credentials
+            # Source the Coolify root user credentials safely
             if [ -f /opt/vibestack-ansible/coolify-root-user.env ]; then
-              source /opt/vibestack-ansible/coolify-root-user.env
-              export ROOT_USERNAME="$COOLIFY_ROOT_USERNAME"
-              export ROOT_USER_EMAIL="$COOLIFY_ROOT_EMAIL"
-              export ROOT_USER_PASSWORD="$COOLIFY_ROOT_PASSWORD"
+              # Read credentials safely line by line
+              COOLIFY_ROOT_USERNAME=$(grep "^COOLIFY_ROOT_USERNAME=" /opt/vibestack-ansible/coolify-root-user.env | cut -d'=' -f2)
+              COOLIFY_ROOT_EMAIL=$(grep "^COOLIFY_ROOT_EMAIL=" /opt/vibestack-ansible/coolify-root-user.env | cut -d'=' -f2)
+              COOLIFY_ROOT_PASSWORD=$(grep "^COOLIFY_ROOT_PASSWORD=" /opt/vibestack-ansible/coolify-root-user.env | cut -d'=' -f2)
               echo "Coolify credentials loaded for installation"
             fi
 
             # Retry logic for Coolify installer with environment variables
             for attempt in $(seq 1 3); do
               echo "Coolify installation attempt $attempt"
-              if env ROOT_USERNAME="$ROOT_USERNAME" ROOT_USER_EMAIL="$ROOT_USER_EMAIL" ROOT_USER_PASSWORD="$ROOT_USER_PASSWORD" bash -c 'curl -fsSL https://cdn.coollabs.io/coolify/install.sh | bash'; then
+              if env ROOT_USERNAME="$COOLIFY_ROOT_USERNAME" ROOT_USER_EMAIL="$COOLIFY_ROOT_EMAIL" ROOT_USER_PASSWORD="$COOLIFY_ROOT_PASSWORD" bash -c 'curl -fsSL https://cdn.coollabs.io/coolify/install.sh | bash'; then
                 echo "Coolify installation successful"
                 exit 0
               else
