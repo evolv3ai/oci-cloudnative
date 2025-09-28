@@ -5,9 +5,6 @@ resource "oci_core_volume" "kasm_data" {
   display_name        = "kasm-data${local.suffix}"
   size_in_gbs         = var.kasm_block_volume_size_in_gbs
 
-  # For Always Free tier, vpus_per_gb must be null (not specified) or 10
-  # 10 VPUs is the minimum for balanced performance
-  vpus_per_gb = 10
 }
 
 resource "oci_core_volume_attachment" "kasm" {
