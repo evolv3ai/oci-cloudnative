@@ -149,14 +149,20 @@ runcmd:
 
       mkdir -p "$TARGET_DIR"
 
+      # Debug: Check if files exist and their sizes
+      echo "DEBUG: Certificate file size: $(wc -c < "$CERT_B64" 2>/dev/null || echo "0")" >> /var/log/vibestack-setup.log
+      echo "DEBUG: Key file size: $(wc -c < "$KEY_B64" 2>/dev/null || echo "0")" >> /var/log/vibestack-setup.log
+      echo "DEBUG: Certificate file first 50 chars: $(head -c 50 "$CERT_B64" 2>/dev/null || echo "empty")" >> /var/log/vibestack-setup.log
+      echo "DEBUG: Key file first 50 chars: $(head -c 50 "$KEY_B64" 2>/dev/null || echo "empty")" >> /var/log/vibestack-setup.log
+
       if base64 -d "$CERT_B64" > "$CERT_TMP" 2>>/var/log/vibestack-setup.log; then
-        echo "Certificate decoded successfully" >> /var/log/vibestack-setup.log
+        echo "Certificate decoded successfully (size: $(wc -c < "$CERT_TMP"))" >> /var/log/vibestack-setup.log
       else
         echo "ERROR: Failed to decode certificate" >> /var/log/vibestack-setup.log
       fi
 
       if base64 -d "$KEY_B64" > "$KEY_TMP" 2>>/var/log/vibestack-setup.log; then
-        echo "Private key decoded successfully" >> /var/log/vibestack-setup.log
+        echo "Private key decoded successfully (size: $(wc -c < "$KEY_TMP"))" >> /var/log/vibestack-setup.log
       else
         echo "ERROR: Failed to decode private key" >> /var/log/vibestack-setup.log
       fi
@@ -193,10 +199,19 @@ runcmd:
       KEY_DEST="$TARGET_DIR/$DOMAIN.key"
 
       rm -f "$CERT_DEST" "$KEY_DEST"
+
+      # Debug: Check temp file sizes before move
+      echo "DEBUG: Temp cert size before move: $(wc -c < "$CERT_TMP" 2>/dev/null || echo "0")" >> /var/log/vibestack-setup.log
+      echo "DEBUG: Temp key size before move: $(wc -c < "$KEY_TMP" 2>/dev/null || echo "0")" >> /var/log/vibestack-setup.log
+
       mv "$CERT_TMP" "$CERT_DEST"
       mv "$KEY_TMP" "$KEY_DEST"
       chmod 644 "$CERT_DEST" 2>/dev/null || true
       chmod 600 "$KEY_DEST" 2>/dev/null || true
+
+      # Debug: Check final file sizes after move
+      echo "DEBUG: Final cert size: $(wc -c < "$CERT_DEST" 2>/dev/null || echo "0")" >> /var/log/vibestack-setup.log
+      echo "DEBUG: Final key size: $(wc -c < "$KEY_DEST" 2>/dev/null || echo "0")" >> /var/log/vibestack-setup.log
 
       echo "Certificate domain: $DOMAIN" >> /var/log/vibestack-setup.log
 

@@ -41,7 +41,9 @@
       "Bash(curl:*)",
       "Read(//home/kasm-user/.local/bin/**)",
       "Bash(gh release list:*)",
-      "Bash(terraform init:*)"
+      "Bash(terraform init:*)",
+      "Bash(grep:*)",
+      "Bash(git reset:*)"
     ],
     "deny": [],
     "ask": []
