@@ -269,35 +269,43 @@
                 var: ssl_copy_result.stdout_lines
               when: ssl_copy_result is defined and ssl_copy_result.stdout_lines is defined
 
-            - name: Create Traefik dynamic configuration for SSL certificates
-              shell: |
-                if [ -d "/data/coolify/proxy/certs" ] && [ -f "/opt/vibestack-ansible/ssl-config.env" ]; then
-                  echo "Creating Traefik dynamic configuration for SSL certificates..."
+            - name: Create Traefik dynamic configuration script
+              copy:
+                dest: /opt/vibestack-ansible/create-traefik-config.sh
+                mode: '0755'
+                content: |
+                  #!/bin/bash
+                  if [ -d "/data/coolify/proxy/certs" ] && [ -f "/opt/vibestack-ansible/ssl-config.env" ]; then
+                    echo "Creating Traefik dynamic configuration for SSL certificates..."
 
-                  # Read SSL domain from config
-                  SSL_DOMAIN=$(grep "^SSL_DOMAIN=" /opt/vibestack-ansible/ssl-config.env | cut -d'=' -f2)
+                    # Read SSL domain from config
+                    SSL_DOMAIN=$(grep "^SSL_DOMAIN=" /opt/vibestack-ansible/ssl-config.env | cut -d'=' -f2)
 
-                  # Create dynamic directory if it doesn't exist
-                  mkdir -p /data/coolify/proxy/dynamic
+                    # Create dynamic directory if it doesn't exist
+                    mkdir -p /data/coolify/proxy/dynamic
 
-                  # Create Traefik dynamic configuration
-                  cat > /data/coolify/proxy/dynamic/cloudflare-origin-certs.yaml << 'EOFTRAEFIK'
-                tls:
-                  certificates:
-                    -
-                      certFile: /data/coolify/proxy/certs/${SSL_DOMAIN}.cert
-                      keyFile: /data/coolify/proxy/certs/${SSL_DOMAIN}.key
-                EOFTRAEFIK
+                    # Create Traefik dynamic configuration
+                    cat > /data/coolify/proxy/dynamic/cloudflare-origin-certs.yaml << EOF
+                  tls:
+                    certificates:
+                      -
+                        certFile: /data/coolify/proxy/certs/${SSL_DOMAIN}.cert
+                        keyFile: /data/coolify/proxy/certs/${SSL_DOMAIN}.key
+                  EOF
 
-                  # Set proper permissions
-                  chmod 644 /data/coolify/proxy/dynamic/cloudflare-origin-certs.yaml
+                    # Set proper permissions
+                    chmod 644 /data/coolify/proxy/dynamic/cloudflare-origin-certs.yaml
 
-                  echo "Traefik dynamic configuration created at /data/coolify/proxy/dynamic/cloudflare-origin-certs.yaml"
-                  echo "Certificate file: /data/coolify/proxy/certs/${SSL_DOMAIN}.cert"
-                  echo "Key file: /data/coolify/proxy/certs/${SSL_DOMAIN}.key"
-                else
-                  echo "SSL certificates or configuration not found - skipping Traefik configuration"
-                fi
+                    echo "Traefik dynamic configuration created at /data/coolify/proxy/dynamic/cloudflare-origin-certs.yaml"
+                    echo "Certificate file: /data/coolify/proxy/certs/${SSL_DOMAIN}.cert"
+                    echo "Key file: /data/coolify/proxy/certs/${SSL_DOMAIN}.key"
+                  else
+                    echo "SSL certificates or configuration not found - skipping Traefik configuration"
+                  fi
+              when: ssl_staging_dir.stat.exists
+
+            - name: Execute Traefik configuration script
+              command: /opt/vibestack-ansible/create-traefik-config.sh
               when: ssl_staging_dir.stat.exists
               register: traefik_config_result
 
