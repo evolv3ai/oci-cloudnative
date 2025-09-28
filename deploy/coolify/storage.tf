@@ -5,6 +5,9 @@ resource "oci_core_volume" "coolify_data" {
   compartment_id      = oci_identity_compartment.vibestack.id
   display_name        = "coolify-data${local.suffix}"
   size_in_gbs         = var.coolify_block_volume_size_in_gbs
+
+  # VPUs (Volume Performance Units) - 0 for Always Free tier (Basic performance)
+  vpus_per_gb         = "0"
 }
 
 resource "oci_core_volume_attachment" "coolify" {
