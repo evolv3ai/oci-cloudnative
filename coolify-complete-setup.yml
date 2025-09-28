@@ -97,9 +97,53 @@
     - name: Install Coolify
       block:
         - name: Check if Coolify is already installed
-          stat:
-            path: /data/coolify
-          register: coolify_installed
+          shell: |
+            # Check multiple indicators of a working Coolify installation
+            COOLIFY_INDICATORS=0
+
+            # 1. Check if coolify command exists and works
+            if command -v coolify >/dev/null 2>&1; then
+              echo "Found coolify command"
+              COOLIFY_INDICATORS=$((COOLIFY_INDICATORS + 1))
+            fi
+
+            # 2. Check if Coolify containers are running
+            if docker ps --format "table {{.Names}}" 2>/dev/null | grep -q coolify; then
+              echo "Found running Coolify containers"
+              COOLIFY_INDICATORS=$((COOLIFY_INDICATORS + 1))
+            fi
+
+            # 3. Check if Coolify core application files exist (not just cert directories)
+            if [ -f "/data/coolify/source/.env" ] || [ -f "/data/coolify/source/bootstrap/app.php" ]; then
+              echo "Found Coolify application files"
+              COOLIFY_INDICATORS=$((COOLIFY_INDICATORS + 1))
+            fi
+
+            # 4. Check if Coolify API is responding
+            if curl -f -s -o /dev/null -w "%{http_code}" http://localhost:8000 2>/dev/null | grep -q "200\|302\|401"; then
+              echo "Coolify API is responding"
+              COOLIFY_INDICATORS=$((COOLIFY_INDICATORS + 1))
+            fi
+
+            echo "Coolify installation indicators found: $COOLIFY_INDICATORS"
+
+            # Consider Coolify installed if we find 2 or more indicators
+            if [ $COOLIFY_INDICATORS -ge 2 ]; then
+              echo "Coolify appears to be properly installed"
+              exit 0
+            else
+              echo "Coolify is not properly installed (found $COOLIFY_INDICATORS/4 indicators)"
+              exit 1
+            fi
+          register: coolify_check_result
+          failed_when: false
+          changed_when: false
+
+        - name: Display Coolify installation decision
+          debug:
+            msg: |
+              Coolify installation check result: {{ 'SKIP installation (already installed)' if coolify_check_result.rc == 0 else 'PROCEED with installation (not properly installed)' }}
+              Check output: {{ coolify_check_result.stdout_lines | default(['No output']) | join(', ') }}
 
         - name: Wait for network connectivity
           wait_for:
@@ -114,7 +158,7 @@
             chmod +x /tmp/install_coolify.sh
           args:
             creates: /tmp/install_coolify.sh
-          when: not coolify_installed.stat.exists
+          when: coolify_check_result.rc != 0
           retries: 3
           delay: 10
 
@@ -125,7 +169,7 @@
             timeout 180 bash -c 'while lsof /var/lib/apt/lists/lock >/dev/null 2>&1; do echo "Waiting for apt lists lock..."; sleep 5; done'
             timeout 180 bash -c 'while lsof /var/cache/apt/archives/lock >/dev/null 2>&1; do echo "Waiting for apt cache lock..."; sleep 5; done'
             echo "All package locks cleared for Coolify installation"
-          when: not coolify_installed.stat.exists
+          when: coolify_check_result.rc != 0
 
         - name: Run Coolify installer with retries
           shell: |
@@ -149,7 +193,7 @@
             exit 1
           args:
             creates: /data/coolify
-          when: not coolify_installed.stat.exists
+          when: coolify_check_result.rc != 0
           register: coolify_install_result
           failed_when: coolify_install_result.rc != 0
 
@@ -188,6 +232,42 @@
             - /data/coolify/ssl
             - /data/coolify/custom
           when: ansible_distribution == 'Ubuntu'
+
+        - name: Move SSL certificates from staging to Coolify location
+          block:
+            - name: Check if SSL certificates exist in staging area
+              stat:
+                path: /opt/vibestack-ansible/ssl-certs-staging
+              register: ssl_staging_dir
+
+            - name: Copy SSL certificates to Coolify proxy directory
+              shell: |
+                if [ -d "/opt/vibestack-ansible/ssl-certs-staging" ]; then
+                  echo "Moving SSL certificates from staging to Coolify location..."
+                  cp -v /opt/vibestack-ansible/ssl-certs-staging/* /data/coolify/proxy/certs/ 2>&1 || true
+                  echo "SSL certificate files copied to Coolify"
+
+                  # Update the SSL config file with correct paths
+                  if [ -f "/opt/vibestack-ansible/ssl-config.env" ]; then
+                    sed -i 's|/opt/vibestack-ansible/ssl-certs-staging|/data/coolify/proxy/certs|g' /opt/vibestack-ansible/ssl-config.env
+                    echo "SSL config file updated with Coolify paths"
+                  fi
+
+                  # Set proper permissions
+                  chmod 644 /data/coolify/proxy/certs/*.cert 2>/dev/null || true
+                  chmod 600 /data/coolify/proxy/certs/*.key 2>/dev/null || true
+
+                  echo "SSL certificate setup completed"
+                else
+                  echo "No SSL staging directory found - skipping SSL certificate setup"
+                fi
+              when: ssl_staging_dir.stat.exists
+              register: ssl_copy_result
+
+            - name: Display SSL certificate copy results
+              debug:
+                var: ssl_copy_result.stdout_lines
+              when: ssl_copy_result is defined and ssl_copy_result.stdout_lines is defined
 
     # =============================================================================
     # SSL CERTIFICATE SETUP (Alternative to Cloudflare Tunnel)

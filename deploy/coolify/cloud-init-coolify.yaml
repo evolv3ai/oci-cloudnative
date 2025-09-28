@@ -143,7 +143,7 @@ runcmd:
       CERT_B64="$TMP_DIR/ssl-cert.b64"
       KEY_B64="$TMP_DIR/ssl-key.b64"
       CHAIN_B64="$TMP_DIR/ssl-chain.b64"
-      TARGET_DIR="/data/coolify/proxy/certs"
+      TARGET_DIR="/opt/vibestack-ansible/ssl-certs-staging"
       CERT_TMP="$TMP_DIR/ssl.cert"
       KEY_TMP="$TMP_DIR/ssl.key"
 
@@ -256,8 +256,11 @@ runcmd:
         echo "SSL_DOMAIN=$DOMAIN"
         echo "SSL_CERT_PATH=$CERT_DEST"
         echo "SSL_KEY_PATH=$KEY_DEST"
+        echo "SSL_STAGING_CERT_PATH=$CERT_DEST"
+        echo "SSL_STAGING_KEY_PATH=$KEY_DEST"
         if [ -n "$CHAIN_DEST" ]; then
           echo "SSL_FULLCHAIN_PATH=$CHAIN_DEST"
+          echo "SSL_STAGING_FULLCHAIN_PATH=$CHAIN_DEST"
         fi
       } > /opt/vibestack-ansible/ssl-config.env
       chmod 644 /opt/vibestack-ansible/ssl-config.env
