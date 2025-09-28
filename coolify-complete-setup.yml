@@ -108,7 +108,7 @@
             fi
 
             # 2. Check if Coolify containers are running
-            if docker ps --format "table {{.Names}}" 2>/dev/null | grep -q coolify; then
+            if docker ps --format "table {{ '{{.Names}}' }}" 2>/dev/null | grep -q coolify; then
               echo "Found running Coolify containers"
               COOLIFY_INDICATORS=$((COOLIFY_INDICATORS + 1))
             fi
@@ -120,7 +120,7 @@
             fi
 
             # 4. Check if Coolify API is responding
-            if curl -f -s -o /dev/null -w "%{http_code}" http://localhost:8000 2>/dev/null | grep -q "200\|302\|401"; then
+            if curl -f -s -o /dev/null -w "{{ '%{http_code}' }}" http://localhost:8000 2>/dev/null | grep -q "200\|302\|401"; then
               echo "Coolify API is responding"
               COOLIFY_INDICATORS=$((COOLIFY_INDICATORS + 1))
             fi

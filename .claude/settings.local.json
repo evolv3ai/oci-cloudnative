@@ -43,7 +43,12 @@
       "Bash(gh release list:*)",
       "Bash(terraform init:*)",
       "Bash(grep:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "mcp__ht-mcp__ht_list_sessions",
+      "mcp__ssh-mcp__exec",
+      "mcp__ht-mcp__ht_create_session",
+      "mcp__ht-mcp__ht_take_snapshot",
+      "mcp__ht-mcp__ht_send_keys"
     ],
     "deny": [],
     "ask": []
