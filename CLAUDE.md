@@ -134,6 +134,21 @@ README.md buttons point to: `releases/latest/download/vibestack-{package}.zip`
 - Packages are built by GitHub Actions when release is published
 - Each release includes: `vibestack-full.zip`, `vibestack-coolify.zip`, `vibestack-kasm.zip`
 
+## SSH Access
+
+**IMPORTANT**: To connect to deployed OCI instances, use the correct SSH key and configuration:
+
+```bash
+# Standard SSH connection to deployed instances
+ssh -o StrictHostKeyChecking=no -i /home/kasm-user/.oci/my-oci-devops ubuntu@<INSTANCE_IP>
+
+# Examples:
+ssh -o StrictHostKeyChecking=no -i /home/kasm-user/.oci/my-oci-devops ubuntu@129.80.13.64
+ssh -o StrictHostKeyChecking=no -i /home/kasm-user/.oci/my-oci-devops ubuntu@132.145.215.167
+```
+
+**SSH Key Location**: `/home/kasm-user/.oci/my-oci-devops` (private key for OCI instances)
+
 ## Development Commands
 
 ### VibeStack Terraform Deployment (Primary)

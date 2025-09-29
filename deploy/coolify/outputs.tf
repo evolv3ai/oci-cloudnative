@@ -50,6 +50,16 @@ output "coolify_url" {
   ) : null
 }
 
+output "coolify_credentials" {
+  description = "Coolify login information"
+  value = var.deploy_coolify ? {
+    email    = local.coolify_root_email
+    password = local.coolify_root_password
+    note     = "Save these credentials securely - they won't be shown again"
+  } : null
+  sensitive = true
+}
+
 output "ssh_access" {
   description = "SSH access information"
   value = var.deploy_coolify ? (
@@ -69,17 +79,43 @@ output "deployment_instructions" {
   description = "Next steps after deployment"
   value = var.deploy_coolify ? (
     local.setup_cloudflare_tunnel ? [
-      "✅ Coolify deployed with Cloudflare tunnel",
-      "🌐 Access Coolify at: https://${var.tunnel_hostname}",
-      "🔐 SSH access at: ${local.final_ssh_hostname}",
-      "⏱️ Allow 5-7 minutes for tunnel setup to complete",
-      "📋 Check deployment status: ssh ubuntu@${oci_core_instance.coolify[0].public_ip} 'cat /opt/vibestack-ansible/deployment-success.txt'"
+      "═══════════════════════════════════════════════════════════════════",
+      "✅ COOLIFY DEPLOYED - FULLY AUTOMATED SETUP",
+      "═══════════════════════════════════════════════════════════════════",
+      "",
+      "⏱️  Please wait 5-7 minutes for automated setup to complete",
+      "",
+      "🌐 Access Coolify: https://${var.tunnel_hostname}",
+      "📧 Login Email: ${local.coolify_root_email}",
+      "🔑 Password: ${local.coolify_root_password}",
+      "",
+      "✨ Everything is configured automatically:",
+      "   • Cloudflare tunnel ✓",
+      "   • SSL certificates ✓",
+      "   • Wildcard domains ✓",
+      "   • Root user account ✓",
+      "",
+      "No SSH or manual configuration needed!",
+      "═══════════════════════════════════════════════════════════════════"
     ] : [
-      "✅ Coolify deployed successfully",
-      "🌐 Access Coolify at: http://${oci_core_instance.coolify[0].public_ip}:8000",
-      "🔐 SSH access: ubuntu@${oci_core_instance.coolify[0].public_ip}",
-      "⏱️ Allow 3-5 minutes for setup to complete",
-      "💡 To add Cloudflare tunnel later, check: /opt/vibestack-ansible/README.md"
+      "═══════════════════════════════════════════════════════════════════",
+      "✅ COOLIFY DEPLOYED - MANUAL TUNNEL SETUP REQUIRED",
+      "═══════════════════════════════════════════════════════════════════",
+      "",
+      "⏱️  Please wait 3-5 minutes for initial setup",
+      "",
+      "🌐 Access Coolify: http://${oci_core_instance.coolify[0].public_ip}:8000",
+      "📧 Login Email: ${local.coolify_root_email}",
+      "🔑 Password: ${local.coolify_root_password}",
+      "",
+      "📌 To enable HTTPS access via Cloudflare:",
+      "   1️⃣  Login to Coolify",
+      "   ☁️  Create new 'cloudflared' service",
+      "   🔐  Enter your Cloudflare tunnel token",
+      "   🚀  Deploy the service",
+      "",
+      "🌐 Then access at: https://your-domain.com",
+      "═══════════════════════════════════════════════════════════════════"
     ]
   ) : null
 }
