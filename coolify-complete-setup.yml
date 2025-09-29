@@ -1000,8 +1000,9 @@
         - name: Configure Coolify instance domain and wildcard settings
           shell: |
             # Extract domain values from Cloudflare config
-            INSTANCE_DOMAIN="https://{{ cloudflare_config.TUNNEL_HOSTNAME | default('coolify.example.com') }}"
-            BASE_DOMAIN="{{ cloudflare_config.TUNNEL_HOSTNAME | default('coolify.example.com') | regex_replace('^[^.]+\\.', '') }}"
+            TUNNEL_HOSTNAME="{{ cloudflare_config.TUNNEL_HOSTNAME | default('coolify.example.com') }}"
+            INSTANCE_DOMAIN="https://${TUNNEL_HOSTNAME}"
+            BASE_DOMAIN=$(echo "${TUNNEL_HOSTNAME}" | sed 's/^[^.]*\.//')
             WILDCARD_DOMAIN="https://${BASE_DOMAIN}"
 
             echo "Setting Instance Domain: $INSTANCE_DOMAIN"
