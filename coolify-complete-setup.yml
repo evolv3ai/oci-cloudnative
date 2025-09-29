@@ -548,8 +548,23 @@
           set_fact:
             tunnel_id: "{{ tunnel_result.json.result.id | default('') }}"
             tunnel_secret: "{{ tunnel_result.json.result.credentials_file.TunnelSecret | default('') }}"
-            tunnel_token: "{{ tunnel_result.json.result.token | default('') }}"
           when: tunnel_result.json is defined and tunnel_result.json.success | default(false)
+
+        - name: Get tunnel token
+          uri:
+            url: "https://api.cloudflare.com/client/v4/accounts/{{ cloudflare_config.CLOUDFLARE_ACCOUNT_ID }}/cfd_tunnel/{{ tunnel_id }}/token"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ cloudflare_config.CLOUDFLARE_API_TOKEN }}"
+              Content-Type: "application/json"
+            return_content: yes
+          register: tunnel_token_result
+          when: tunnel_id is defined and tunnel_id != ""
+
+        - name: Extract tunnel token
+          set_fact:
+            tunnel_token: "{{ tunnel_token_result.json.result | default('') }}"
+          when: tunnel_token_result.json is defined and tunnel_token_result.json.success | default(false)
 
         - name: Handle tunnel creation failure
           block:
@@ -604,6 +619,22 @@
           fail:
             msg: "Cloudflare tunnel credentials missing; delete the tunnel or provide new credentials."
           when: (tunnel_secret | default('')) == ''
+
+        - name: Get tunnel token (for existing tunnels or if missing)
+          uri:
+            url: "https://api.cloudflare.com/client/v4/accounts/{{ cloudflare_config.CLOUDFLARE_ACCOUNT_ID }}/cfd_tunnel/{{ tunnel_id }}/token"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ cloudflare_config.CLOUDFLARE_API_TOKEN }}"
+              Content-Type: "application/json"
+            return_content: yes
+          register: tunnel_token_result_final
+          when: (tunnel_token | default('')) == '' and tunnel_id is defined and tunnel_id != ""
+
+        - name: Extract tunnel token (final)
+          set_fact:
+            tunnel_token: "{{ tunnel_token_result_final.json.result | default('') }}"
+          when: tunnel_token_result_final.json is defined and tunnel_token_result_final.json.success | default(false)
 
         - name: Create cloudflared directory
           file:
@@ -954,19 +985,15 @@
           ignore_errors: yes
 
         - name: Check if Coolify database container is running
-          shell: docker ps --filter "name=coolify-db" --format "{{.Names}}"
+          shell: 'docker ps --filter "name=coolify-db" --format "{%raw%}{{.Names}}{%endraw%}"'
           register: coolify_db_status
           failed_when: false
 
         - name: Extract Coolify database password
-          shell: |
-            # Try to get the DB password from Coolify's .env file
-            if docker exec coolify test -f /data/coolify/source/.env 2>/dev/null; then
-              docker exec coolify grep "^DB_PASSWORD=" /data/coolify/source/.env | cut -d'=' -f2- | tr -d '"' | tr -d "'"
-            else
-              echo "Database password not found"
-              exit 1
-            fi
+          shell: >
+            if docker exec coolify test -f /var/www/html/.env 2>/dev/null; then
+            docker exec coolify grep "^DB_PASSWORD=" /var/www/html/.env | cut -d'=' -f2- | tr -d '"' | tr -d "'";
+            else echo "Database password not found" && exit 1; fi
           register: db_password_result
           when: coolify_db_status.stdout == "coolify-db"
 
@@ -980,31 +1007,19 @@
             echo "Setting Instance Domain: $INSTANCE_DOMAIN"
             echo "Setting Wildcard Domain: $WILDCARD_DOMAIN"
 
-            # Execute SQL commands to update domain settings
-            docker exec coolify-db psql -U coolify -d coolify << EOF
-            -- Update instance settings (Settings -> General -> Domain)
-            UPDATE instance_settings
-            SET fqdn = '$INSTANCE_DOMAIN',
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = 0;
+            # Set environment variable for database access
+            export PGPASSWORD="{{ db_password_result.stdout }}"
 
-            -- Update server settings (Servers -> localhost -> Wildcard)
-            UPDATE server_settings
-            SET wildcard_domain = '$WILDCARD_DOMAIN',
-                updated_at = CURRENT_TIMESTAMP
-            WHERE server_id = 0;
+            # Update instance domain setting
+            docker exec coolify-db psql -U coolify -d coolify -c "UPDATE instance_settings SET fqdn = '$INSTANCE_DOMAIN', updated_at = CURRENT_TIMESTAMP WHERE id = 0;"
 
-            -- Verify the changes
-            SELECT 'Instance Domain' as setting, fqdn as value
-            FROM instance_settings WHERE id = 0
-            UNION ALL
-            SELECT 'Wildcard Domain' as setting, wildcard_domain as value
-            FROM server_settings WHERE server_id = 0;
-            EOF
+            # Update wildcard domain setting
+            docker exec coolify-db psql -U coolify -d coolify -c "UPDATE server_settings SET wildcard_domain = '$WILDCARD_DOMAIN', updated_at = CURRENT_TIMESTAMP WHERE server_id = 0;"
+
+            # Verify the changes
+            docker exec coolify-db psql -U coolify -d coolify -c "SELECT 'Instance Domain' as setting, fqdn as value FROM instance_settings WHERE id = 0 UNION ALL SELECT 'Wildcard Domain' as setting, wildcard_domain as value FROM server_settings WHERE server_id = 0;"
 
             echo "Domain settings updated successfully"
-          environment:
-            PGPASSWORD: "{{ db_password_result.stdout }}"
           when:
             - coolify_db_status.stdout == "coolify-db"
             - db_password_result is succeeded
