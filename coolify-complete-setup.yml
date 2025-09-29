@@ -954,7 +954,7 @@
           ignore_errors: yes
 
         - name: Check if Coolify database container is running
-          shell: docker ps --filter "name=coolify-db" --format "{{ '{{.Names}}' }}"
+          shell: docker ps --filter "name=coolify-db" --format "{{.Names}}"
           register: coolify_db_status
           failed_when: false
 
@@ -974,7 +974,7 @@
           shell: |
             # Extract domain values from Cloudflare config
             INSTANCE_DOMAIN="https://{{ cloudflare_config.TUNNEL_HOSTNAME | default('coolify.example.com') }}"
-            BASE_DOMAIN="{{ cloudflare_config.TUNNEL_HOSTNAME | default('coolify.example.com') | regex_replace('^[^.]+\.', '') }}"
+            BASE_DOMAIN="{{ cloudflare_config.TUNNEL_HOSTNAME | default('coolify.example.com') | regex_replace('^[^.]+\\.', '') }}"
             WILDCARD_DOMAIN="https://${BASE_DOMAIN}"
 
             echo "Setting Instance Domain: $INSTANCE_DOMAIN"
