@@ -6,7 +6,7 @@ resource "null_resource" "wait_for_ansible_coolify" {
 
   depends_on = [
     oci_core_instance.coolify,
-    oci_core_volume_attachment.coolify_data
+    oci_core_volume_attachment.coolify
   ]
 
   # Wait for cloud-init to complete and Ansible setup marker file
