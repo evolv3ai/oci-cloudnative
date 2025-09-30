@@ -325,13 +325,26 @@ runcmd:
 
     if $ANSIBLE_CMD complete-setup.yml; then
       echo "Ansible playbook completed successfully"
+      # Create marker file to signal completion to Terraform
+      echo "Ansible setup completed at $(date)" > /opt/vibestack-ansible/setup-complete
+      chmod 644 /opt/vibestack-ansible/setup-complete
     else
       echo "Ansible playbook failed with exit code $?"
       echo "Check /var/log/ansible-setup.log for details"
+      # Create marker file even on failure so Terraform doesn't hang
+      echo "Ansible setup completed with errors at $(date)" > /opt/vibestack-ansible/setup-complete
+      chmod 644 /opt/vibestack-ansible/setup-complete
     fi
     EOF
     chmod +x /opt/vibestack-ansible/run-setup.sh
     chown ubuntu:ubuntu /opt/vibestack-ansible/run-setup.sh
+
+  # Create marker file for testing mode since Ansible won't run automatically
+  - |
+    echo "Cloud-init completed in testing mode at $(date)" > /opt/vibestack-ansible/setup-complete
+    echo "Ansible playbook has NOT been executed. Run manually with: /opt/vibestack-ansible/run-setup.sh" >> /opt/vibestack-ansible/setup-complete
+    chmod 644 /opt/vibestack-ansible/setup-complete
+    chown ubuntu:ubuntu /opt/vibestack-ansible/setup-complete
 
 %{ else ~}
   # Final check: ensure no package management processes are running before Ansible
@@ -362,10 +375,16 @@ runcmd:
 
     if $ANSIBLE_CMD complete-setup.yml; then
       echo "Ansible playbook completed successfully" >> /var/log/vibestack-setup.log
+      # Create marker file to signal completion to Terraform
+      echo "Ansible setup completed at $(date)" > /opt/vibestack-ansible/setup-complete
+      chmod 644 /opt/vibestack-ansible/setup-complete
     else
       echo "Ansible playbook failed with exit code $?" >> /var/log/vibestack-setup.log
       echo "Check /var/log/ansible-setup.log for details" >> /var/log/vibestack-setup.log
       # Continue anyway - partial setup might be recoverable
+      # Create marker file even on failure so Terraform doesn't hang
+      echo "Ansible setup completed with errors at $(date)" > /opt/vibestack-ansible/setup-complete
+      chmod 644 /opt/vibestack-ansible/setup-complete
     fi
 %{ endif ~}
 

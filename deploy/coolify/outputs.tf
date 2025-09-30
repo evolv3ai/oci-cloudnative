@@ -33,6 +33,11 @@ output "security_list_ingress_ports" {
   value = [for rule in local.ingress_tcp_ports : rule.port]
 }
 
+output "ansible_setup_status" {
+  description = "Status of Ansible setup completion"
+  value = var.deploy_coolify ? "Terraform has waited for Ansible setup to complete. Check /opt/vibestack-ansible/setup-complete on the instance for details." : null
+}
+
 # =============================================================================
 # CLOUDFLARE TUNNEL OUTPUTS
 # =============================================================================
