@@ -43,6 +43,39 @@ output "ansible_setup_status" {
 }
 
 # =============================================================================
+# CRITICAL LOGIN INFORMATION (Always Visible)
+# =============================================================================
+
+output "COOLIFY_ACCESS_URL" {
+  description = "⭐ URL to access Coolify web interface"
+  value = var.deploy_coolify ? (
+    local.setup_cloudflare_tunnel ? "https://${var.tunnel_hostname}" : "http://${oci_core_instance.coolify[0].public_ip}:8000"
+  ) : null
+}
+
+output "COOLIFY_ADMIN_EMAIL" {
+  description = "⭐ Admin email for Coolify login"
+  value = var.deploy_coolify ? local.coolify_root_email : null
+}
+
+output "COOLIFY_ADMIN_PASSWORD" {
+  description = "⭐ Admin password for Coolify login (SAVE THIS!)"
+  value = var.deploy_coolify ? local.coolify_root_password : null
+}
+
+output "INSTANCE_PUBLIC_IP" {
+  description = "⭐ Public IP address of the Coolify server"
+  value = var.deploy_coolify ? oci_core_instance.coolify[0].public_ip : null
+}
+
+output "SETUP_WAIT_TIME" {
+  description = "⭐ Estimated time to wait before accessing Coolify"
+  value = var.deploy_coolify ? (
+    local.setup_cloudflare_tunnel ? "5-7 minutes for full automated setup" : "3-5 minutes for basic setup"
+  ) : null
+}
+
+# =============================================================================
 # CLOUDFLARE TUNNEL OUTPUTS
 # =============================================================================
 
