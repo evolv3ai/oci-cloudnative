@@ -1,8 +1,14 @@
 # Terraform null_resource to wait for Ansible setup completion
 # This ensures Terraform waits for cloud-init and Ansible to finish
+#
+# NOTE: This provisioner is only enabled when private_key_path is provided.
+# When using OCI Resource Manager, this will be skipped since SSH keys
+# are not accessible in that environment. Users should check the instance
+# logs to verify Ansible completion: /opt/vibestack-ansible/setup-complete
 
 resource "null_resource" "wait_for_ansible_coolify" {
-  count = var.deploy_coolify ? 1 : 0
+  # Only run if Coolify is deployed AND we have a private key for SSH access
+  count = var.deploy_coolify && var.private_key_path != "" ? 1 : 0
 
   depends_on = [
     oci_core_instance.coolify,
@@ -24,7 +30,7 @@ resource "null_resource" "wait_for_ansible_coolify" {
       type        = "ssh"
       host        = var.assign_public_ip ? oci_core_instance.coolify[0].public_ip : oci_core_instance.coolify[0].private_ip
       user        = "ubuntu"
-      private_key = var.private_key_path != "" ? file(var.private_key_path) : null
+      private_key = file(var.private_key_path)
       timeout     = "30m"
     }
   }

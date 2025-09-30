@@ -35,7 +35,11 @@ output "security_list_ingress_ports" {
 
 output "ansible_setup_status" {
   description = "Status of Ansible setup completion"
-  value = var.deploy_coolify ? "Terraform has waited for Ansible setup to complete. Check /opt/vibestack-ansible/setup-complete on the instance for details." : null
+  value = var.deploy_coolify ? (
+    var.private_key_path != "" ?
+      "Terraform has waited for Ansible setup to complete. Check /opt/vibestack-ansible/setup-complete on the instance for details." :
+      "Ansible setup running in background. SSH to instance and check /opt/vibestack-ansible/setup-complete to verify completion."
+  ) : null
 }
 
 # =============================================================================
