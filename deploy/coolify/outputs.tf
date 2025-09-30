@@ -50,14 +50,11 @@ output "coolify_url" {
   ) : null
 }
 
-output "coolify_credentials" {
-  description = "Coolify login information"
-  value = var.deploy_coolify ? {
-    email    = local.coolify_root_email
-    password = local.coolify_root_password
-    note     = "Save these credentials securely - they won't be shown again"
-  } : null
-  sensitive = true
+output "coolify_credentials_location" {
+  description = "Where to find Coolify login credentials"
+  value = var.deploy_coolify ? (
+    "SSH to server and view: /opt/vibestack/coolify-root-user.env"
+  ) : null
 }
 
 output "ssh_access" {
@@ -85,9 +82,11 @@ output "deployment_instructions" {
       "",
       "⏱️  Please wait 5-7 minutes for automated setup to complete",
       "",
-      "🌐 Access Coolify: https://${var.tunnel_hostname}",
-      "📧 Login Email: ${local.coolify_root_email}",
-      "🔑 Password: ${local.coolify_root_password}",
+      "🌐 Coolify URL: https://${var.tunnel_hostname}",
+      "",
+      "🔑 Get login credentials:",
+      "   ssh ubuntu@${oci_core_instance.coolify[0].public_ip}",
+      "   cat /opt/vibestack/coolify-root-user.env",
       "",
       "✨ Everything is configured automatically:",
       "   • Cloudflare tunnel ✓",
@@ -95,7 +94,6 @@ output "deployment_instructions" {
       "   • Wildcard domains ✓",
       "   • Root user account ✓",
       "",
-      "No SSH or manual configuration needed!",
       "═══════════════════════════════════════════════════════════════════"
     ] : [
       "═══════════════════════════════════════════════════════════════════",
@@ -104,9 +102,11 @@ output "deployment_instructions" {
       "",
       "⏱️  Please wait 3-5 minutes for initial setup",
       "",
-      "🌐 Access Coolify: http://${oci_core_instance.coolify[0].public_ip}:8000",
-      "📧 Login Email: ${local.coolify_root_email}",
-      "🔑 Password: ${local.coolify_root_password}",
+      "🌐 Coolify URL: http://${oci_core_instance.coolify[0].public_ip}:8000",
+      "",
+      "🔑 Get login credentials:",
+      "   ssh ubuntu@${oci_core_instance.coolify[0].public_ip}",
+      "   cat /opt/vibestack/coolify-root-user.env",
       "",
       "📌 To enable HTTPS access via Cloudflare:",
       "   1️⃣  Login to Coolify",
@@ -118,5 +118,4 @@ output "deployment_instructions" {
       "═══════════════════════════════════════════════════════════════════"
     ]
   )
-  sensitive = true
 }
