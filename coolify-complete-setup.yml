@@ -518,6 +518,14 @@
 
     - name: Setup Cloudflare Tunnel
       block:
+        - name: Wait for package management locks before cloudflared install
+          shell: |
+            echo "Waiting for package locks to clear before cloudflared installation..."
+            timeout 300 bash -c 'while lsof /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do echo "Waiting for dpkg lock..."; sleep 5; done'
+            timeout 300 bash -c 'while lsof /var/lib/apt/lists/lock >/dev/null 2>&1; do echo "Waiting for apt lists lock..."; sleep 5; done'
+            timeout 300 bash -c 'while lsof /var/cache/apt/archives/lock >/dev/null 2>&1; do echo "Waiting for apt cache lock..."; sleep 5; done'
+            echo "All package locks cleared for cloudflared installation"
+
         - name: Install cloudflared
           shell: |
             curl -L --output /tmp/cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64.deb
