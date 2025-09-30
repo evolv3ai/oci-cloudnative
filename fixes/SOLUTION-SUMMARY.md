@@ -39,19 +39,19 @@ cp D:\oci-cloudnative\fixes\cloud-init-coolify-CLOUDFLARE-FIXED.yaml cloud-init-
 OLD (BROKEN):
 ```yaml
 # Decode certificates with proper formatting
-base64 -d /opt/vibestack-ansible/ssl-cert.b64 | fold -w 64 > /tmp/ssl.crt
+base64 -d /opt/vibestack/ssl-cert.b64 | fold -w 64 > /tmp/ssl.crt
 {
   echo "-----BEGIN CERTIFICATE-----"
   grep -v "BEGIN CERTIFICATE\|END CERTIFICATE" /tmp/ssl.crt | tr -d '\n' | fold -w 64
   echo "-----END CERTIFICATE-----"
-} > /opt/vibestack-ansible/ssl.cert
+} > /opt/vibestack/ssl.cert
 ```
 
 NEW (FIXED):
 ```yaml
 # Simply decode the base64 - content is already perfect PEM
-base64 -d /opt/vibestack-ansible/ssl-cert.b64 > /opt/vibestack-ansible/ssl.cert
-base64 -d /opt/vibestack-ansible/ssl-key.b64 > /opt/vibestack-ansible/ssl.key
+base64 -d /opt/vibestack/ssl-cert.b64 > /opt/vibestack/ssl.cert
+base64 -d /opt/vibestack/ssl-key.b64 > /opt/vibestack/ssl.key
 ```
 
 That's it! Just decode, don't reformat.
@@ -69,8 +69,8 @@ bash D:\oci-cloudnative\fixes\test-cloudflare-certs.sh mycert.pem mykey.pem
 SSH to the instance and check:
 ```bash
 # Check if files exist and are valid
-sudo openssl x509 -in /opt/vibestack-ansible/ssl.cert -noout -text | head -10
-sudo openssl rsa -in /opt/vibestack-ansible/ssl.key -check -noout
+sudo openssl x509 -in /opt/vibestack/ssl.cert -noout -text | head -10
+sudo openssl rsa -in /opt/vibestack/ssl.key -check -noout
 
 # Check the logs
 sudo grep -A5 -B5 "SSL" /var/log/vibestack-setup.log
@@ -116,8 +116,8 @@ Just set `enable_cloudflare_tunnel = true` and provide API token.
 ## Success Indicators
 
 After deploying the fix, you should see:
-1. `/opt/vibestack-ansible/ssl.cert` exists and is valid
-2. `/opt/vibestack-ansible/ssl.key` exists and is valid
+1. `/opt/vibestack/ssl.cert` exists and is valid
+2. `/opt/vibestack/ssl.key` exists and is valid
 3. Ansible playbook completes successfully
 4. Coolify accessible via HTTPS
 

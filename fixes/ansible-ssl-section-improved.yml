@@ -13,8 +13,8 @@
             path: "{{ item }}"
           register: ssl_files
           loop:
-            - /opt/vibestack-ansible/ssl.cert
-            - /opt/vibestack-ansible/ssl.key
+            - /opt/vibestack/ssl.cert
+            - /opt/vibestack/ssl.key
 
         - name: Verify SSL files exist
           set_fact:
@@ -30,23 +30,23 @@
 
         - name: Validate SSL certificate format
           shell: |
-            openssl x509 -in /opt/vibestack-ansible/ssl.cert -noout -text > /dev/null 2>&1
+            openssl x509 -in /opt/vibestack/ssl.cert -noout -text > /dev/null 2>&1
           register: cert_validation
           failed_when: false
           when: ssl_cert_exists
 
         - name: Validate SSL private key format
           shell: |
-            openssl rsa -in /opt/vibestack-ansible/ssl.key -check -noout > /dev/null 2>&1 || \
-            openssl pkey -in /opt/vibestack-ansible/ssl.key -noout > /dev/null 2>&1
+            openssl rsa -in /opt/vibestack/ssl.key -check -noout > /dev/null 2>&1 || \
+            openssl pkey -in /opt/vibestack/ssl.key -noout > /dev/null 2>&1
           register: key_validation
           failed_when: false
           when: ssl_key_exists
 
         - name: Check certificate and key match
           shell: |
-            cert_mod=$(openssl x509 -noout -modulus -in /opt/vibestack-ansible/ssl.cert | openssl md5)
-            key_mod=$(openssl rsa -noout -modulus -in /opt/vibestack-ansible/ssl.key | openssl md5)
+            cert_mod=$(openssl x509 -noout -modulus -in /opt/vibestack/ssl.cert | openssl md5)
+            key_mod=$(openssl rsa -noout -modulus -in /opt/vibestack/ssl.key | openssl md5)
             [ "$cert_mod" = "$key_mod" ]
           register: cert_key_match
           failed_when: false
@@ -63,12 +63,12 @@
         - name: Extract primary domain from certificate
           shell: |
             # Try to get CN (Common Name) first
-            domain=$(openssl x509 -in /opt/vibestack-ansible/ssl.cert -noout -subject | \
+            domain=$(openssl x509 -in /opt/vibestack/ssl.cert -noout -subject | \
                      sed -n 's/.*CN=\([^/]*\).*/\1/p' | tr -d ' ')
             
             # If no CN, get first SAN
             if [ -z "$domain" ]; then
-              domain=$(openssl x509 -in /opt/vibestack-ansible/ssl.cert -noout -text | \
+              domain=$(openssl x509 -in /opt/vibestack/ssl.cert -noout -text | \
                        grep -A1 "Subject Alternative Name" | tail -1 | \
                        grep -oP 'DNS:\K[^,]*' | head -1 | tr -d ' ')
             fi
@@ -93,7 +93,7 @@
 
         - name: Copy SSL certificate to Coolify
           copy:
-            src: /opt/vibestack-ansible/ssl.cert
+            src: /opt/vibestack/ssl.cert
             dest: "/data/coolify/proxy/certs/{{ ssl_domain }}.crt"
             mode: '0644'
             owner: root
@@ -103,7 +103,7 @@
 
         - name: Copy SSL private key to Coolify
           copy:
-            src: /opt/vibestack-ansible/ssl.key
+            src: /opt/vibestack/ssl.key
             dest: "/data/coolify/proxy/certs/{{ ssl_domain }}.key"
             mode: '0600'
             owner: root
@@ -117,8 +117,8 @@
             cp /data/coolify/proxy/certs/{{ ssl_domain }}.crt \
                /data/coolify/proxy/certs/{{ ssl_domain }}.pem
             
-            if [ -f /opt/vibestack-ansible/ssl-chain.cert ]; then
-              cat /opt/vibestack-ansible/ssl-chain.cert >> \
+            if [ -f /opt/vibestack/ssl-chain.cert ]; then
+              cat /opt/vibestack/ssl-chain.cert >> \
                   /data/coolify/proxy/certs/{{ ssl_domain }}.pem
             fi
             

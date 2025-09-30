@@ -28,11 +28,11 @@ cat scripts/logs/$(ls -t scripts/logs/*.env | head -1)
 ```bash
 # Sync local changes to instance
 rsync -avz -e "ssh -i C:\Users\Owner\.ssh\my-oci-devops" \
-  ./ansible/ ubuntu@<IP>:/opt/vibestack-ansible/
+  ./ansible/ ubuntu@<IP>:/opt/vibestack/
 
 # SSH and test
 ssh -i C:\Users\Owner\.ssh\my-oci-devops ubuntu@<IP>
-sudo ansible-playbook /opt/vibestack-ansible/kasm/install.yml
+sudo ansible-playbook /opt/vibestack/kasm/install.yml
 ```
 
 **Method B: Clean Reset**
@@ -43,7 +43,7 @@ sudo docker rm $(sudo docker ps -aq) 2>/dev/null
 sudo rm -rf /opt/kasm/*
 
 # Re-run
-sudo ansible-playbook /opt/vibestack-ansible/kasm/install.yml
+sudo ansible-playbook /opt/vibestack/kasm/install.yml
 ```
 
 ## Branch Strategy
@@ -53,7 +53,7 @@ sudo ansible-playbook /opt/vibestack-ansible/kasm/install.yml
 git checkout -b test-ansible
 
 # In deploy/kasm/cloud-init-kasm.yaml, comment out:
-# - cd /opt/vibestack-ansible && ansible-playbook kasm/install.yml
+# - cd /opt/vibestack && ansible-playbook kasm/install.yml
 
 # Test until perfect
 # Then uncomment and merge to main

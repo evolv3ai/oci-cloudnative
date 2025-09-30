@@ -33,7 +33,7 @@ write_files:
 %{ for var in cloudflare_env_vars ~}
       ${var}
 %{ endfor ~}
-    path: /opt/vibestack-ansible/.env
+    path: /opt/vibestack/.env
     permissions: '0644'
 
   # Coolify root user configuration
@@ -41,32 +41,32 @@ write_files:
       COOLIFY_ROOT_USERNAME=${coolify_root_username}
       COOLIFY_ROOT_EMAIL=${coolify_root_email}
       COOLIFY_ROOT_PASSWORD=${coolify_root_password}
-    path: /opt/vibestack-ansible/coolify-root-user.env
+    path: /opt/vibestack/coolify-root-user.env
     permissions: '0600'
     owner: root:root
 
 %{ if setup_custom_ssl ~}
   # SSL Certificate Files (base64 encoded for safe transmission)
   - content: "${ssl_cert_b64}"
-    path: /opt/vibestack-ansible/ssl-cert.b64
+    path: /opt/vibestack/ssl-cert.b64
     permissions: '0600'
     owner: root:root
 
   - content: "${ssl_key_b64}"
-    path: /opt/vibestack-ansible/ssl-key.b64
+    path: /opt/vibestack/ssl-key.b64
     permissions: '0600'
     owner: root:root
 
 %{ if ssl_chain_b64 != "" ~}
   - content: "${ssl_chain_b64}"
-    path: /opt/vibestack-ansible/ssl-chain.b64
+    path: /opt/vibestack/ssl-chain.b64
     permissions: '0600'
     owner: root:root
 %{ endif ~}
 
   - content: |
       SSL_ENABLED=true
-    path: /opt/vibestack-ansible/ssl-config.env
+    path: /opt/vibestack/ssl-config.env
     permissions: '0644'
 %{ endif ~}
 
@@ -123,11 +123,11 @@ runcmd:
     done
 
   # Create ansible directory
-  - mkdir -p /opt/vibestack-ansible
+  - mkdir -p /opt/vibestack
 
   # Download the latest playbook from GitHub (with retry)
   - timeout 60 wget -O /tmp/complete-setup.yml https://raw.githubusercontent.com/evolv3ai/oci-cloudnative/main/coolify-complete-setup.yml || (sleep 10 && timeout 60 wget -O /tmp/complete-setup.yml https://raw.githubusercontent.com/evolv3ai/oci-cloudnative/main/coolify-complete-setup.yml)
-  - cp /tmp/complete-setup.yml /opt/vibestack-ansible/complete-setup.yml
+  - cp /tmp/complete-setup.yml /opt/vibestack/complete-setup.yml
 
   # Install pip and ansible with proper paths and retries
   - python3 -m pip install --upgrade pip || (sleep 5 && python3 -m pip install --upgrade pip)
@@ -141,18 +141,18 @@ runcmd:
   - /home/ubuntu/.local/bin/ansible-galaxy collection install ansible.posix --force || /usr/local/bin/ansible-galaxy collection install ansible.posix --force || ansible-galaxy collection install ansible.posix --force
 
   # Set proper permissions
-  - chown -R ubuntu:ubuntu /opt/vibestack-ansible
+  - chown -R ubuntu:ubuntu /opt/vibestack
 
 %{ if setup_custom_ssl ~}
   # FIXED SSL PROCESSING FOR CLOUDFLARE ORIGIN CERTIFICATES
   - |
-    if [ -f /opt/vibestack-ansible/ssl-cert.b64 ] && [ -f /opt/vibestack-ansible/ssl-key.b64 ]; then
+    if [ -f /opt/vibestack/ssl-cert.b64 ] && [ -f /opt/vibestack/ssl-key.b64 ]; then
       echo "Processing Cloudflare Origin SSL certificates..." >> /var/log/vibestack-setup.log
-      TMP_DIR="/opt/vibestack-ansible"
+      TMP_DIR="/opt/vibestack"
       CERT_B64="$TMP_DIR/ssl-cert.b64"
       KEY_B64="$TMP_DIR/ssl-key.b64"
       CHAIN_B64="$TMP_DIR/ssl-chain.b64"
-      TARGET_DIR="/opt/vibestack-ansible/ssl-certs-staging"
+      TARGET_DIR="/opt/vibestack/ssl-certs-staging"
       CERT_TMP="$TMP_DIR/ssl.cert"
       KEY_TMP="$TMP_DIR/ssl.key"
 
@@ -271,8 +271,8 @@ runcmd:
           echo "SSL_FULLCHAIN_PATH=$CHAIN_DEST"
           echo "SSL_STAGING_FULLCHAIN_PATH=$CHAIN_DEST"
         fi
-      } > /opt/vibestack-ansible/ssl-config.env
-      chmod 644 /opt/vibestack-ansible/ssl-config.env
+      } > /opt/vibestack/ssl-config.env
+      chmod 644 /opt/vibestack/ssl-config.env
 
       rm -f "$CERT_B64" "$KEY_B64" "$CHAIN_B64"
 
@@ -291,19 +291,19 @@ runcmd:
     echo "Ansible has been installed but the playbook will NOT be executed automatically." >> /var/log/vibestack-setup.log
     echo "" >> /var/log/vibestack-setup.log
     echo "To run the Ansible playbook manually, SSH into the instance and run:" >> /var/log/vibestack-setup.log
-    echo "  cd /opt/vibestack-ansible" >> /var/log/vibestack-setup.log
+    echo "  cd /opt/vibestack" >> /var/log/vibestack-setup.log
     echo "  ansible-playbook complete-setup.yml" >> /var/log/vibestack-setup.log
     echo "" >> /var/log/vibestack-setup.log
-    echo "The playbook is located at: /opt/vibestack-ansible/complete-setup.yml" >> /var/log/vibestack-setup.log
+    echo "The playbook is located at: /opt/vibestack/complete-setup.yml" >> /var/log/vibestack-setup.log
     echo "=============================================" >> /var/log/vibestack-setup.log
 
   # Create a helper script for manual execution
   - |
-    cat > /opt/vibestack-ansible/run-setup.sh << 'EOF'
+    cat > /opt/vibestack/run-setup.sh << 'EOF'
     #!/bin/bash
     # Helper script to run the Ansible setup manually
 
-    cd /opt/vibestack-ansible
+    cd /opt/vibestack
 
     echo "Starting Ansible playbook execution..."
     export ANSIBLE_LOG_PATH=/var/log/ansible-setup.log
@@ -330,8 +330,8 @@ runcmd:
       echo "Check /var/log/ansible-setup.log for details"
     fi
     EOF
-    chmod +x /opt/vibestack-ansible/run-setup.sh
-    chown ubuntu:ubuntu /opt/vibestack-ansible/run-setup.sh
+    chmod +x /opt/vibestack/run-setup.sh
+    chown ubuntu:ubuntu /opt/vibestack/run-setup.sh
 
 %{ else ~}
   # Final check: ensure no package management processes are running before Ansible
@@ -342,7 +342,7 @@ runcmd:
 
   # Run the automation playbook with better error handling and verbose logging
   - |
-    cd /opt/vibestack-ansible
+    cd /opt/vibestack
     export ANSIBLE_LOG_PATH=/var/log/ansible-setup.log
     export ANSIBLE_VERBOSITY=2
 

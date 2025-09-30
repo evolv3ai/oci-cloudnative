@@ -56,13 +56,13 @@ bash verify-ssl-certs.sh cert.pem key.pem
 After deployment, SSH to instance and check:
 ```bash
 # Check if files exist
-ls -la /opt/vibestack-ansible/ssl*
+ls -la /opt/vibestack/ssl*
 
 # Verify certificate
-openssl x509 -in /opt/vibestack-ansible/ssl.cert -noout -text
+openssl x509 -in /opt/vibestack/ssl.cert -noout -text
 
 # Verify private key
-openssl rsa -in /opt/vibestack-ansible/ssl.key -check -noout
+openssl rsa -in /opt/vibestack/ssl.key -check -noout
 
 # Check logs
 cat /var/log/vibestack-setup.log | grep -i ssl
@@ -98,7 +98,7 @@ private_key:
 2. [ ] Deploy with fixed cloud-init
 3. [ ] SSH to instance after deployment
 4. [ ] Check `/var/log/vibestack-setup.log` for SSL entries
-5. [ ] Verify files in `/opt/vibestack-ansible/`
+5. [ ] Verify files in `/opt/vibestack/`
 6. [ ] Check Coolify container for certificate mounting
 7. [ ] Test HTTPS access to Coolify UI
 
@@ -107,7 +107,7 @@ private_key:
 ```bash
 # On deployed instance
 sudo -i
-cd /opt/vibestack-ansible
+cd /opt/vibestack
 
 # Check what was written
 ls -la ssl*

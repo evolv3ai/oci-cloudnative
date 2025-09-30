@@ -59,12 +59,12 @@ Each package sets these variables appropriately:
    - Installs Python3, pip, and system dependencies
    - Installs Ansible via pip3 with proper timing delays
    - Installs Ansible collections (community.general, community.docker, ansible.posix)
-   - Creates Ansible playbooks in `/opt/vibestack-ansible/`
+   - Creates Ansible playbooks in `/opt/vibestack/`
    - Sets proper permissions for ubuntu user
 
 3. **Post-Deployment Configuration**: After deployment, SSH into servers and run:
    ```bash
-   cd /opt/vibestack-ansible
+   cd /opt/vibestack
    ansible-playbook coolify/install.yml  # For Coolify server
    ansible-playbook kasm/install.yml     # For KASM server
    ```
@@ -241,7 +241,7 @@ terraform destroy
 ### Ansible Testing Mode
 - Use test-ansible branch for development
 - Comment out auto-execution in cloud-init
-- Sync files directly: rsync -avz ./ansible/ ubuntu@<IP>:/opt/vibestack-ansible/
+- Sync files directly: rsync -avz ./ansible/ ubuntu@<IP>:/opt/vibestack/
 - Test without rebuilding: terraform apply once, iterate many times
 
 ### Local Validation

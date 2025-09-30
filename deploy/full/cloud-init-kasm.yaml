@@ -15,7 +15,7 @@ packages:
   - resolvconf
 
 write_files:
-  - path: /opt/vibestack-ansible/kasm/install.yml
+  - path: /opt/vibestack/kasm/install.yml
     content: |
       ---
       # KASM Workspaces Installation Playbook
@@ -209,7 +209,7 @@ write_files:
                     - "Admin credentials can be found in: /opt/kasm/current/conf/app/admin_creds.txt"
     permissions: '0644'
 
-  - path: /opt/vibestack-ansible/README.md
+  - path: /opt/vibestack/README.md
     content: |
       # VibeStack Ansible Configuration
 
@@ -219,7 +219,7 @@ write_files:
 
       ### Configure KASM
       ```bash
-      cd /opt/vibestack-ansible
+      cd /opt/vibestack
       ansible-playbook kasm/install.yml
       ```
 
@@ -272,17 +272,17 @@ runcmd:
   - /usr/local/bin/ansible-galaxy collection install community.general --force || ansible-galaxy collection install community.general --force
   - /usr/local/bin/ansible-galaxy collection install community.docker --force || ansible-galaxy collection install community.docker --force
   - /usr/local/bin/ansible-galaxy collection install ansible.posix --force || ansible-galaxy collection install ansible.posix --force
-  - chown -R ubuntu:ubuntu /opt/vibestack-ansible
+  - chown -R ubuntu:ubuntu /opt/vibestack
   - echo 'Ansible environment ready'
-  - echo 'Configuration files in /opt/vibestack-ansible/'
-  - echo 'To configure run cd /opt/vibestack-ansible && ansible-playbook kasm/install.yml'
+  - echo 'Configuration files in /opt/vibestack/'
+  - echo 'To configure run cd /opt/vibestack && ansible-playbook kasm/install.yml'
 
 final_message: |
   VibeStack KASM server is ready!
 
   Next steps:
   1. SSH into your server
-  2. Run: cd /opt/vibestack-ansible && ansible-playbook kasm/install.yml
+  2. Run: cd /opt/vibestack && ansible-playbook kasm/install.yml
   3. Access KASM at https://[YOUR-SERVER-IP]
 
   The server has been configured with Ansible and all necessary playbooks.

@@ -118,7 +118,7 @@ EOT
 ### Certificate Deployment Process
 
 1. **Terraform** passes certificate data to cloud-init as base64-encoded variables
-2. **Cloud-init** writes encoded certificates to `/opt/vibestack-ansible/`
+2. **Cloud-init** writes encoded certificates to `/opt/vibestack/`
 3. **Runcmd** decodes certificates and sets proper permissions
 4. **Ansible playbook**:
    - Copies certificates to `/data/coolify/proxy/certs/`
@@ -128,8 +128,8 @@ EOT
 
 ### Certificate Locations on Server
 
-- `/opt/vibestack-ansible/ssl.cert` - Certificate (temporary)
-- `/opt/vibestack-ansible/ssl.key` - Private key (temporary)
+- `/opt/vibestack/ssl.cert` - Certificate (temporary)
+- `/opt/vibestack/ssl.key` - Private key (temporary)
 - `/data/coolify/proxy/certs/{domain}.cert` - Final certificate location
 - `/data/coolify/proxy/certs/{domain}.key` - Final private key location
 - `/data/coolify/proxy/certs/{domain}-fullchain.cert` - Full certificate chain
@@ -223,5 +223,5 @@ sudo docker restart coolify-proxy
 
 For issues or questions:
 - Check `/var/log/vibestack-setup.log` for deployment logs
-- Review `/opt/vibestack-ansible/deployment-success.txt` for configuration details
+- Review `/opt/vibestack/deployment-success.txt` for configuration details
 - Open an issue on GitHub with relevant log excerpts

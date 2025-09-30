@@ -25,7 +25,7 @@ sync_ansible() {
         echo "Syncing to $server server at $ip..."
         rsync -avz --delete \
             -e "ssh -i $SSH_KEY" \
-            ./ansible/ ubuntu@$ip:/opt/vibestack-ansible/
+            ./ansible/ ubuntu@$ip:/opt/vibestack/
         echo "Sync complete! SSH with: ssh -i $SSH_KEY ubuntu@$ip"
     else
         echo "$server server not found in deployment"

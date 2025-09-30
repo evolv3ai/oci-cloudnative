@@ -9,7 +9,7 @@
   gather_facts: yes
   vars:
     # Environment file for Cloudflare variables (populated by cloud-init)
-    env_file: "/opt/vibestack-ansible/.env"
+    env_file: "/opt/vibestack/.env"
     coolify_port: "8000"
 
   tasks:
@@ -177,11 +177,11 @@
         - name: Run Coolify installer with retries
           shell: |
             # Source the Coolify root user credentials safely
-            if [ -f /opt/vibestack-ansible/coolify-root-user.env ]; then
+            if [ -f /opt/vibestack/coolify-root-user.env ]; then
               # Read credentials safely line by line
-              COOLIFY_ROOT_USERNAME=$(grep "^COOLIFY_ROOT_USERNAME=" /opt/vibestack-ansible/coolify-root-user.env | cut -d'=' -f2)
-              COOLIFY_ROOT_EMAIL=$(grep "^COOLIFY_ROOT_EMAIL=" /opt/vibestack-ansible/coolify-root-user.env | cut -d'=' -f2)
-              COOLIFY_ROOT_PASSWORD=$(grep "^COOLIFY_ROOT_PASSWORD=" /opt/vibestack-ansible/coolify-root-user.env | cut -d'=' -f2)
+              COOLIFY_ROOT_USERNAME=$(grep "^COOLIFY_ROOT_USERNAME=" /opt/vibestack/coolify-root-user.env | cut -d'=' -f2)
+              COOLIFY_ROOT_EMAIL=$(grep "^COOLIFY_ROOT_EMAIL=" /opt/vibestack/coolify-root-user.env | cut -d'=' -f2)
+              COOLIFY_ROOT_PASSWORD=$(grep "^COOLIFY_ROOT_PASSWORD=" /opt/vibestack/coolify-root-user.env | cut -d'=' -f2)
               echo "Coolify credentials loaded for installation"
             fi
 
@@ -249,19 +249,19 @@
           block:
             - name: Check if SSL certificates exist in staging area
               stat:
-                path: /opt/vibestack-ansible/ssl-certs-staging
+                path: /opt/vibestack/ssl-certs-staging
               register: ssl_staging_dir
 
             - name: Copy SSL certificates to Coolify proxy directory
               shell: |
-                if [ -d "/opt/vibestack-ansible/ssl-certs-staging" ]; then
+                if [ -d "/opt/vibestack/ssl-certs-staging" ]; then
                   echo "Moving SSL certificates from staging to Coolify location..."
-                  cp -v /opt/vibestack-ansible/ssl-certs-staging/* /data/coolify/proxy/certs/ 2>&1 || true
+                  cp -v /opt/vibestack/ssl-certs-staging/* /data/coolify/proxy/certs/ 2>&1 || true
                   echo "SSL certificate files copied to Coolify"
 
                   # Update the SSL config file with correct paths
-                  if [ -f "/opt/vibestack-ansible/ssl-config.env" ]; then
-                    sed -i 's|/opt/vibestack-ansible/ssl-certs-staging|/data/coolify/proxy/certs|g' /opt/vibestack-ansible/ssl-config.env
+                  if [ -f "/opt/vibestack/ssl-config.env" ]; then
+                    sed -i 's|/opt/vibestack/ssl-certs-staging|/data/coolify/proxy/certs|g' /opt/vibestack/ssl-config.env
                     echo "SSL config file updated with Coolify paths"
                   fi
 
@@ -283,15 +283,15 @@
 
             - name: Create Traefik dynamic configuration script
               copy:
-                dest: /opt/vibestack-ansible/create-traefik-config.sh
+                dest: /opt/vibestack/create-traefik-config.sh
                 mode: '0755'
                 content: |
                   #!/bin/bash
-                  if [ -d "/data/coolify/proxy/certs" ] && [ -f "/opt/vibestack-ansible/ssl-config.env" ]; then
+                  if [ -d "/data/coolify/proxy/certs" ] && [ -f "/opt/vibestack/ssl-config.env" ]; then
                     echo "Creating Traefik dynamic configuration for SSL certificates..."
 
                     # Read SSL domain from config
-                    SSL_DOMAIN=$(grep "^SSL_DOMAIN=" /opt/vibestack-ansible/ssl-config.env | cut -d'=' -f2)
+                    SSL_DOMAIN=$(grep "^SSL_DOMAIN=" /opt/vibestack/ssl-config.env | cut -d'=' -f2)
 
                     # Create dynamic directory if it doesn't exist
                     mkdir -p /data/coolify/proxy/dynamic
@@ -317,7 +317,7 @@
               when: ssl_staging_dir.stat.exists
 
             - name: Execute Traefik configuration script
-              command: /opt/vibestack-ansible/create-traefik-config.sh
+              command: /opt/vibestack/create-traefik-config.sh
               when: ssl_staging_dir.stat.exists
               register: traefik_config_result
 
@@ -332,16 +332,16 @@
 
     - name: Check for SSL configuration metadata
       stat:
-        path: /opt/vibestack-ansible/ssl-config.env
+        path: /opt/vibestack/ssl-config.env
       register: ssl_config_file
 
     - name: Load SSL metadata
       set_fact:
         ssl_metadata:
-          ssl_domain: "{{ lookup('ini', 'SSL_DOMAIN section=None file=/opt/vibestack-ansible/ssl-config.env', errors='ignore') }}"
-          ssl_cert_path: "{{ lookup('ini', 'SSL_CERT_PATH section=None file=/opt/vibestack-ansible/ssl-config.env', errors='ignore') }}"
-          ssl_key_path: "{{ lookup('ini', 'SSL_KEY_PATH section=None file=/opt/vibestack-ansible/ssl-config.env', errors='ignore') }}"
-          ssl_fullchain_path: "{{ lookup('ini', 'SSL_FULLCHAIN_PATH section=None file=/opt/vibestack-ansible/ssl-config.env', errors='ignore') }}"
+          ssl_domain: "{{ lookup('ini', 'SSL_DOMAIN section=None file=/opt/vibestack/ssl-config.env', errors='ignore') }}"
+          ssl_cert_path: "{{ lookup('ini', 'SSL_CERT_PATH section=None file=/opt/vibestack/ssl-config.env', errors='ignore') }}"
+          ssl_key_path: "{{ lookup('ini', 'SSL_KEY_PATH section=None file=/opt/vibestack/ssl-config.env', errors='ignore') }}"
+          ssl_fullchain_path: "{{ lookup('ini', 'SSL_FULLCHAIN_PATH section=None file=/opt/vibestack/ssl-config.env', errors='ignore') }}"
       when: ssl_config_file.stat.exists
 
     - name: Check if SSL certificate exists
@@ -439,12 +439,12 @@
             path: "{{ item }}"
             state: absent
           loop:
-            - /opt/vibestack-ansible/ssl.cert
-            - /opt/vibestack-ansible/ssl.key
-            - /opt/vibestack-ansible/ssl-chain.cert
-            - /opt/vibestack-ansible/ssl-cert.b64
-            - /opt/vibestack-ansible/ssl-key.b64
-            - /opt/vibestack-ansible/ssl-chain.b64
+            - /opt/vibestack/ssl.cert
+            - /opt/vibestack/ssl.key
+            - /opt/vibestack/ssl-chain.cert
+            - /opt/vibestack/ssl-cert.b64
+            - /opt/vibestack/ssl-key.b64
+            - /opt/vibestack/ssl-chain.b64
 
         - name: Restart Coolify to apply SSL certificates
           shell: docker restart coolify 2>/dev/null || true
@@ -783,7 +783,7 @@
               # sudo systemctl status cloudflared-vibestack
               # sudo systemctl restart cloudflared-vibestack
               # sudo journalctl -u cloudflared-vibestack -f
-            dest: /opt/vibestack-ansible/tunnel-info.txt
+            dest: /opt/vibestack/tunnel-info.txt
             mode: '0644'
 
       when: setup_tunnel | default(false)
@@ -846,7 +846,7 @@
           {% if not (setup_tunnel | default(false)) %}
           4. Consider setting up Cloudflare tunnel for better security and SSL
           {% endif %}
-        dest: /opt/vibestack-ansible/deployment-success.txt
+        dest: /opt/vibestack/deployment-success.txt
         mode: '0644'
 
     # =============================================================================
@@ -861,13 +861,13 @@
     #   block:
     #     - name: Check for Coolify root user configuration
     #       stat:
-    #         path: /opt/vibestack-ansible/coolify-root-user.env
+    #         path: /opt/vibestack/coolify-root-user.env
     #       register: coolify_root_config
     #
     #     - name: Load Coolify root user credentials
     #       shell: |
-    #         if [ -f /opt/vibestack-ansible/coolify-root-user.env ]; then
-    #           source /opt/vibestack-ansible/coolify-root-user.env
+    #         if [ -f /opt/vibestack/coolify-root-user.env ]; then
+    #           source /opt/vibestack/coolify-root-user.env
     #           echo "ROOT_USERNAME=$COOLIFY_ROOT_USERNAME"
     #           echo "ROOT_EMAIL=$COOLIFY_ROOT_EMAIL"
     #           echo "ROOT_PASSWORD=$COOLIFY_ROOT_PASSWORD"
@@ -878,7 +878,7 @@
     #     - name: Backup existing Coolify .env file
     #       shell: |
     #         if [ -f /data/coolify/source/.env ]; then
-    #           cp /data/coolify/source/.env /opt/vibestack-ansible/coolify.env.backup.$(date +%Y%m%d_%H%M%S)
+    #           cp /data/coolify/source/.env /opt/vibestack/coolify.env.backup.$(date +%Y%m%d_%H%M%S)
     #           echo "Backup created"
     #         else
     #           echo "No .env file to backup"
@@ -887,9 +887,9 @@
     #
     #     - name: Update Coolify root user credentials in .env
     #       shell: |
-    #         if [ -f /data/coolify/source/.env ] && [ -f /opt/vibestack-ansible/coolify-root-user.env ]; then
+    #         if [ -f /data/coolify/source/.env ] && [ -f /opt/vibestack/coolify-root-user.env ]; then
     #           # Source the credentials
-    #           source /opt/vibestack-ansible/coolify-root-user.env
+    #           source /opt/vibestack/coolify-root-user.env
     #
     #           # Update or add ROOT_USERNAME
     #           if grep -q "^ROOT_USERNAME=" /data/coolify/source/.env; then
@@ -940,7 +940,7 @@
     #           Password: {{ coolify_credentials.stdout_lines[2].split('=')[1] | default('') }}
     #
     #           Note: Keep these credentials secure. They provide admin access to your Coolify instance.
-    #         dest: /opt/vibestack-ansible/coolify-credentials.txt
+    #         dest: /opt/vibestack/coolify-credentials.txt
     #         mode: '0600'
     #         owner: root
     #         group: root
@@ -949,11 +949,11 @@
     # Save Coolify access credentials (simplified version)
     - name: Save Coolify access credentials to file
       shell: |
-        if [ -f /opt/vibestack-ansible/coolify-root-user.env ]; then
+        if [ -f /opt/vibestack/coolify-root-user.env ]; then
           # Read credentials safely using grep/cut
-          COOLIFY_ROOT_USERNAME=$(grep "^COOLIFY_ROOT_USERNAME=" /opt/vibestack-ansible/coolify-root-user.env | cut -d'=' -f2)
-          COOLIFY_ROOT_EMAIL=$(grep "^COOLIFY_ROOT_EMAIL=" /opt/vibestack-ansible/coolify-root-user.env | cut -d'=' -f2)
-          COOLIFY_ROOT_PASSWORD=$(grep "^COOLIFY_ROOT_PASSWORD=" /opt/vibestack-ansible/coolify-root-user.env | cut -d'=' -f2)
+          COOLIFY_ROOT_USERNAME=$(grep "^COOLIFY_ROOT_USERNAME=" /opt/vibestack/coolify-root-user.env | cut -d'=' -f2)
+          COOLIFY_ROOT_EMAIL=$(grep "^COOLIFY_ROOT_EMAIL=" /opt/vibestack/coolify-root-user.env | cut -d'=' -f2)
+          COOLIFY_ROOT_PASSWORD=$(grep "^COOLIFY_ROOT_PASSWORD=" /opt/vibestack/coolify-root-user.env | cut -d'=' -f2)
 
           {
             echo "# Coolify Admin Access Credentials"
@@ -965,8 +965,8 @@
             echo "Password: $COOLIFY_ROOT_PASSWORD"
             echo ""
             echo "Note: Keep these credentials secure. They provide admin access to your Coolify instance."
-          } > /opt/vibestack-ansible/coolify-credentials.txt
-          chmod 600 /opt/vibestack-ansible/coolify-credentials.txt
+          } > /opt/vibestack/coolify-credentials.txt
+          chmod 600 /opt/vibestack/coolify-credentials.txt
           echo "Credentials saved to coolify-credentials.txt"
         fi
 
@@ -1054,10 +1054,10 @@
       block:
         - name: Load saved credentials
           shell: |
-            if [ -f /opt/vibestack-ansible/coolify-root-user.env ]; then
-              grep "^COOLIFY_ROOT_USERNAME=" /opt/vibestack-ansible/coolify-root-user.env | cut -d'=' -f2
-              grep "^COOLIFY_ROOT_EMAIL=" /opt/vibestack-ansible/coolify-root-user.env | cut -d'=' -f2
-              grep "^COOLIFY_ROOT_PASSWORD=" /opt/vibestack-ansible/coolify-root-user.env | cut -d'=' -f2
+            if [ -f /opt/vibestack/coolify-root-user.env ]; then
+              grep "^COOLIFY_ROOT_USERNAME=" /opt/vibestack/coolify-root-user.env | cut -d'=' -f2
+              grep "^COOLIFY_ROOT_EMAIL=" /opt/vibestack/coolify-root-user.env | cut -d'=' -f2
+              grep "^COOLIFY_ROOT_PASSWORD=" /opt/vibestack/coolify-root-user.env | cut -d'=' -f2
             else
               echo "admin"
               echo "admin@example.com"
@@ -1083,7 +1083,7 @@
               - "1️⃣  Login to Coolify Admin Panel:"
               - "   URL: http://{{ public_ip.content | trim if public_ip.content is defined else ansible_default_ipv4.address }}:{{ coolify_port }}"
               - "   Username: {{ saved_credentials.stdout_lines[0] | default('admin') }}"
-              - "   Password: {{ saved_credentials.stdout_lines[2] | default('check /opt/vibestack-ansible/coolify-root-user.env') }}"
+              - "   Password: {{ saved_credentials.stdout_lines[2] | default('check /opt/vibestack/coolify-root-user.env') }}"
               - ""
               - "2️⃣  Create Cloudflare Tunnel Service in Coolify:"
               - "   • Go to Services → Add Service → Docker Compose"
@@ -1091,7 +1091,7 @@
               - "   • Add environment variable:"
               - ""
               - "3️⃣  Paste this Cloudflare Tunnel Token:"
-              - "   🔑 TOKEN: {{ tunnel_token | default('Token not available - check /opt/vibestack-ansible/tunnel-info.txt') }}"
+              - "   🔑 TOKEN: {{ tunnel_token | default('Token not available - check /opt/vibestack/tunnel-info.txt') }}"
               - ""
               - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
               - ""
@@ -1099,6 +1099,6 @@
               - "   Primary: https://{{ cloudflare_config.TUNNEL_HOSTNAME | default('coolify.example.com') }}"
               - "   Wildcard: https://{{ cloudflare_config.TUNNEL_HOSTNAME | default('example.com') | regex_replace('^[^.]+\\.', '') }}"
               - ""
-              - "📄 All credentials saved to: /opt/vibestack-ansible/"
+              - "📄 All credentials saved to: /opt/vibestack/"
               - ""
               - "🚀 Ready to deploy applications with Coolify!"

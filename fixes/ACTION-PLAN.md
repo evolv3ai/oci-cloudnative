@@ -63,7 +63,7 @@ private_key:
 - Test scripts: `D:\oci-cloudnative\fixes\verify-ssl-certs.sh`
 
 ### On Deployed Instance
-- Certificates: `/opt/vibestack-ansible/ssl.*`
+- Certificates: `/opt/vibestack/ssl.*`
 - Logs: `/var/log/vibestack-setup.log`
 - Coolify certs: `/data/coolify/proxy/certs/`
 
@@ -124,14 +124,14 @@ ssh -i C:/Users/Owner/.ssh/my-oci-devops ubuntu@[IP]
 
 # Manually place certificates
 sudo -i
-cd /opt/vibestack-ansible
+cd /opt/vibestack
 
 # Create ssl.cert and ssl.key with proper content
 nano ssl.cert  # Paste certificate
 nano ssl.key   # Paste private key
 
 # Run just the SSL part of ansible
-cd /opt/vibestack-ansible
+cd /opt/vibestack
 ansible-playbook complete-setup.yml --tags ssl
 ```
 

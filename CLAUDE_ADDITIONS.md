@@ -20,7 +20,7 @@ This avoids the slow cycle of: commit → release → deploy → test
 ### Ansible Testing Mode
 - Use test-ansible branch for development
 - Comment out auto-execution in cloud-init
-- Sync files directly: rsync -avz ./ansible/ ubuntu@<IP>:/opt/vibestack-ansible/
+- Sync files directly: rsync -avz ./ansible/ ubuntu@<IP>:/opt/vibestack/
 - Test without rebuilding: terraform apply once, iterate many times
 
 ### Local Validation

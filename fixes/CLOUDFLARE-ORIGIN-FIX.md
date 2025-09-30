@@ -20,36 +20,36 @@ In `cloud-init-coolify.yaml`, replace the entire SSL processing section (lines ~
     echo "Processing SSL certificates..." >> /var/log/vibestack-setup.log
     
     # Just decode the base64 - the content is already perfect PEM
-    if [ -f /opt/vibestack-ansible/ssl.cert.b64 ]; then
-      base64 -d /opt/vibestack-ansible/ssl.cert.b64 > /opt/vibestack-ansible/ssl.cert
+    if [ -f /opt/vibestack/ssl.cert.b64 ]; then
+      base64 -d /opt/vibestack/ssl.cert.b64 > /opt/vibestack/ssl.cert
       echo "Certificate decoded" >> /var/log/vibestack-setup.log
     fi
     
-    if [ -f /opt/vibestack-ansible/ssl.key.b64 ]; then
-      base64 -d /opt/vibestack-ansible/ssl.key.b64 > /opt/vibestack-ansible/ssl.key
+    if [ -f /opt/vibestack/ssl.key.b64 ]; then
+      base64 -d /opt/vibestack/ssl.key.b64 > /opt/vibestack/ssl.key
       echo "Private key decoded" >> /var/log/vibestack-setup.log
     fi
     
     # Set permissions
-    chmod 644 /opt/vibestack-ansible/ssl.cert
-    chmod 600 /opt/vibestack-ansible/ssl.key
+    chmod 644 /opt/vibestack/ssl.cert
+    chmod 600 /opt/vibestack/ssl.key
     
     # Validate the files
-    if openssl x509 -in /opt/vibestack-ansible/ssl.cert -noout; then
+    if openssl x509 -in /opt/vibestack/ssl.cert -noout; then
       echo "Certificate is valid" >> /var/log/vibestack-setup.log
     else
       echo "ERROR: Certificate validation failed!" >> /var/log/vibestack-setup.log
     fi
     
-    if openssl rsa -in /opt/vibestack-ansible/ssl.key -check -noout 2>/dev/null || \
-       openssl pkey -in /opt/vibestack-ansible/ssl.key -noout 2>/dev/null; then
+    if openssl rsa -in /opt/vibestack/ssl.key -check -noout 2>/dev/null || \
+       openssl pkey -in /opt/vibestack/ssl.key -noout 2>/dev/null; then
       echo "Private key is valid" >> /var/log/vibestack-setup.log
     else
       echo "ERROR: Private key validation failed!" >> /var/log/vibestack-setup.log
     fi
     
     # Clean up
-    rm -f /opt/vibestack-ansible/*.b64
+    rm -f /opt/vibestack/*.b64
 %{ endif ~}
 ```
 
@@ -118,13 +118,13 @@ And in cloud-init, write directly without base64:
 ```yaml
 - content: |
       ${ssl_cert_b64}
-  path: /opt/vibestack-ansible/ssl.cert
+  path: /opt/vibestack/ssl.cert
   permissions: '0644'
   encoding: plain
 
 - content: |
       ${ssl_key_b64}
-  path: /opt/vibestack-ansible/ssl.key
+  path: /opt/vibestack/ssl.key
   permissions: '0600'
   encoding: plain
 ```

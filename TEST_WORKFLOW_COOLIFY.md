@@ -28,11 +28,11 @@ cat scripts/logs/$(ls -t scripts/logs/*.env | head -1) | grep COOLIFY_IP
 ```bash
 # Sync changes
 rsync -avz -e "ssh -i C:\Users\Owner\.ssh\my-oci-devops" \
-  ./ansible/ ubuntu@<IP>:/opt/vibestack-ansible/
+  ./ansible/ ubuntu@<IP>:/opt/vibestack/
 
 # SSH and run
 ssh -i C:\Users\Owner\.ssh\my-oci-devops ubuntu@<IP>
-sudo ansible-playbook /opt/vibestack-ansible/coolify/install.yml
+sudo ansible-playbook /opt/vibestack/coolify/install.yml
 ```
 
 **Clean Reset:**
@@ -44,7 +44,7 @@ sudo docker rm $(sudo docker ps -aq) 2>/dev/null
 sudo rm -rf /data/coolify/*
 
 # Re-install
-sudo ansible-playbook /opt/vibestack-ansible/coolify/install.yml
+sudo ansible-playbook /opt/vibestack/coolify/install.yml
 ```
 
 ## Verification
