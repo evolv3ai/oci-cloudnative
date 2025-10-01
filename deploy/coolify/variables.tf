@@ -1,11 +1,21 @@
 variable "tenancy_ocid" {
   description = "OCID of the tenancy where resources will be created."
   type        = string
+
+  validation {
+    condition     = can(regex("^ocid1\\.(compartment|tenancy)\\.oc1\\..+[a-z0-9]{60}$", var.tenancy_ocid))
+    error_message = "The tenancy_ocid must be a valid Oracle Cloud Tenancy OCID value (e.g. ocid1.tenancy.oc1..aaaaaaaaba3pv6wkcr4jqae5f44n2b2m2yt2j6rx32uzr4h25vqstifsfdsq)."
+  }
 }
 
 variable "region" {
   description = "OCI region identifier (for example, us-phoenix-1)."
   type        = string
+
+  validation {
+    condition     = can(regex("^[a-z]{2}-[a-z]{5,}-[0-9]{1}$", var.region))
+    error_message = "The region must be a valid Oracle Cloud (OCI) Region name (e.g. us-ashburn-1, us-phoenix-1, uk-london-1)."
+  }
 }
 
 variable "parent_compartment_ocid" {
@@ -34,6 +44,11 @@ variable "fingerprint" {
   description = "API signing key fingerprint. Leave blank when using the OCI Cloud Shell or Resource Manager."
   type        = string
   default     = ""
+
+  validation {
+    condition     = var.fingerprint == "" || can(regex("^([a-f0-9]{2}:?){16}$", var.fingerprint))
+    error_message = "The API fingerprint must be 16 colon-delimited hex bytes (e.g. 12:34:56:78:90:ab:cd:ef:12:34:56:78:90:ab:cd:ef) or left blank for ORM/Cloud Shell."
+  }
 }
 
 variable "private_key_path" {

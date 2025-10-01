@@ -69,34 +69,66 @@ write_files:
 
           - name: Configure swap space
             block:
+              - name: Get current swap size in bytes
+                shell: cat /proc/meminfo | grep SwapTotal | awk '{print $2 * 1024}'
+                register: current_swap_size
+                changed_when: false
+
+              - name: Calculate desired swap in bytes
+                set_fact:
+                  desired_swap_bytes: "{{ (swap_size | regex_replace('G$', '') | int * 1024 * 1024 * 1024) | int }}"
+                  current_swap_bytes: "{{ current_swap_size.stdout | int }}"
+
+              - name: Calculate differential swap needed
+                set_fact:
+                  new_swap_size: "{{ [0, (desired_swap_bytes | int - current_swap_bytes | int)] | max }}"
+
+              - name: Display swap calculation
+                debug:
+                  msg:
+                    - "Current swap: {{ (current_swap_bytes | int / 1024 / 1024 / 1024) | round(2) }}GB"
+                    - "Desired swap: {{ (desired_swap_bytes | int / 1024 / 1024 / 1024) | round(2) }}GB"
+                    - "Additional needed: {{ (new_swap_size | int / 1024 / 1024 / 1024) | round(2) }}GB"
+
               - name: Check if swap file exists
                 stat:
                   path: "{{ swap_file }}"
                 register: swap_file_stat
 
-              - name: Create swap file
-                command: fallocate -l {{ swap_size }} {{ swap_file }}
-                when: not swap_file_stat.stat.exists
+              - name: Create swap file using dd (avoids sparse files)
+                command: dd if=/dev/zero bs=1M count={{ (new_swap_size | int / 1024 / 1024) | int }} of={{ swap_file }}
+                when:
+                  - not swap_file_stat.stat.exists
+                  - new_swap_size | int > 0
 
               - name: Set swap file permissions
                 file:
                   path: "{{ swap_file }}"
                   mode: '0600'
-                when: not swap_file_stat.stat.exists
+                when:
+                  - not swap_file_stat.stat.exists
+                  - new_swap_size | int > 0
 
               - name: Make swap file
                 command: mkswap {{ swap_file }}
-                when: not swap_file_stat.stat.exists
+                when:
+                  - not swap_file_stat.stat.exists
+                  - new_swap_size | int > 0
 
               - name: Enable swap
                 command: swapon {{ swap_file }}
-                when: not swap_file_stat.stat.exists
+                when:
+                  - not swap_file_stat.stat.exists
+                  - new_swap_size | int > 0
 
               - name: Add swap to fstab
                 lineinfile:
                   path: /etc/fstab
                   line: "{{ swap_file }} none swap sw 0 0"
                   create: yes
+                when:
+                  - not swap_file_stat.stat.exists
+                  - new_swap_size | int > 0
 
           - name: Install Docker
             block:
@@ -197,15 +229,24 @@ write_files:
                     }
                   dest: /etc/docker/daemon.json
                   mode: '0644'
-                notify: restart docker
 
-              - name: Restart Docker if config changed
+              - name: Restart Docker to apply config
                 systemd:
                   name: docker
                   state: restarted
-                when: docker_check.rc == 0
+
+          - name: Check if KASM is already installed
+            stat:
+              path: /opt/kasm/current
+            register: kasm_installed_check
+
+          - name: Skip installation if already present
+            debug:
+              msg: "✅ KASM already installed at /opt/kasm/current - skipping installation"
+            when: kasm_installed_check.stat.exists
 
           - name: Download and install KASM Workspaces (Offline Method)
+            when: not kasm_installed_check.stat.exists
             block:
               - name: Create KASM directory
                 file:
@@ -257,6 +298,13 @@ write_files:
                     --offline-network-plugin /tmp/kasm_install/kasm_release_plugin_images.tar.gz
                 args:
                   creates: /opt/kasm/current
+                register: install_result
+                retries: 20
+                delay: 10
+                until: >
+                  install_result is success or
+                  ('Failed to lock apt for exclusive operation' not in (install_result.stderr | default('')) and
+                   '/var/lib/dpkg/lock' not in (install_result.stderr | default('')))
                 when: docker_arch == 'arm64'
 
               - name: Run KASM standard installation for AMD64
@@ -267,6 +315,13 @@ write_files:
                     --user-password "{{ kasm_user_password }}"
                 args:
                   creates: /opt/kasm/current
+                register: install_result_amd64
+                retries: 20
+                delay: 10
+                until: >
+                  install_result_amd64 is success or
+                  ('Failed to lock apt for exclusive operation' not in (install_result_amd64.stderr | default('')) and
+                   '/var/lib/dpkg/lock' not in (install_result_amd64.stderr | default('')))
                 when: docker_arch == 'amd64'
 
               - name: Get KASM admin credentials
@@ -422,6 +477,7 @@ write_files:
 
 runcmd:
   - |
+    #!/bin/bash
     set -x
     LOG=/var/log/kasm-cloud-init-runcmd.log
     exec > >(tee -a "$LOG") 2>&1
