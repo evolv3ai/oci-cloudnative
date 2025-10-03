@@ -1,0 +1,95 @@
+# =============================================================================
+# LINODE AUTHENTICATION
+# =============================================================================
+
+# Linode Personal Access Token
+# Get from: https://cloud.linode.com/profile/tokens
+linode_token = "your_linode_api_token_here"
+
+# =============================================================================
+# INSTANCE CONFIGURATION
+# =============================================================================
+
+# Deployment region (e.g., us-east, eu-west, ap-south)
+# Available regions: https://www.linode.com/docs/products/platform/get-started/guides/choose-a-data-center/
+region = "us-east"
+
+# Instance type - Choose based on your needs:
+# - g6-nanode-1:    1GB RAM, 1 CPU  ($5/mo)  - Minimal
+# - g6-standard-1:  2GB RAM, 1 CPU  ($10/mo) - Light usage
+# - g6-standard-2:  4GB RAM, 2 CPU  ($20/mo) - Recommended for Coolify
+# - g6-standard-4:  8GB RAM, 2 CPU  ($40/mo) - Heavy usage
+instance_type = "g6-standard-2"
+
+# Operating system image
+image = "linode/ubuntu22.04"
+
+# Instance label (friendly name)
+instance_label = "coolify-server"
+
+# Root password for the instance (required by Linode)
+# Must be at least 11 characters with uppercase, lowercase, and numbers
+root_pass = "YourSecureRootPassword123!"
+
+# SSH public key(s) for instance access
+# Paste your public key(s) here (one per line)
+# Generate with: ssh-keygen -t ed25519 -C "your_email@example.com"
+ssh_authorized_keys = <<-EOK
+  ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... your_email@example.com
+EOK
+
+# =============================================================================
+# STORAGE CONFIGURATION
+# =============================================================================
+
+# Block storage volume size in GB (10-10240)
+# Pricing: $0.10/GB per month
+# Recommended: 100GB for Coolify
+block_storage_size = 100
+
+# =============================================================================
+# COOLIFY CONFIGURATION
+# =============================================================================
+
+# Coolify root user credentials
+coolify_root_username = "admin"
+coolify_root_email    = "admin@yourdomain.com"
+coolify_root_password = "YourSecureCoolifyPassword123!"
+
+# =============================================================================
+# CLOUDFLARE TUNNEL CONFIGURATION
+# =============================================================================
+
+# Enable Cloudflare Tunnel for secure access
+# When enabled, Coolify will be accessible via a Cloudflare tunnel
+# This eliminates the need to open HTTP/HTTPS ports publicly
+enable_cloudflare_tunnel = true
+
+# Cloudflare API Token
+# Create at: https://dash.cloudflare.com/profile/api-tokens
+# Required permissions:
+# - Zone:DNS:Edit
+# - Account:Cloudflare Tunnel:Edit
+cloudflare_api_token = "your_cloudflare_api_token_here"
+
+# Cloudflare Account ID
+# Find in: https://dash.cloudflare.com (right sidebar)
+cloudflare_account_id = "your_cloudflare_account_id_here"
+
+# Cloudflare Zone ID
+# Find in: https://dash.cloudflare.com → Select your domain → Overview (right sidebar)
+cloudflare_zone_id = "your_cloudflare_zone_id_here"
+
+# Tunnel hostname (must use a domain managed by Cloudflare)
+# Example: coolify.yourdomain.com
+tunnel_hostname = "coolify.yourdomain.com"
+
+# =============================================================================
+# ADVANCED OPTIONS
+# =============================================================================
+
+# Skip automatic Ansible/script execution (for testing only)
+skip_ansible_execution = false
+
+# Tags for organization
+tags = ["coolify", "vibestack", "production"]

@@ -1,0 +1,351 @@
+#cloud-config
+# VibeStack Coolify Cloud-Init Configuration for Linode
+# Includes Cloudflare Tunnel support
+
+hostname: ${instance_label}
+timezone: UTC
+
+# DISABLE automatic package management - we control timing for DNS
+package_update: false
+package_upgrade: false
+package_reboot_if_required: false
+
+# DNS fix happens FIRST in bootcmd (early boot phase)
+bootcmd:
+  - echo "nameserver 1.1.1.1" > /etc/resolv.conf
+  - echo "nameserver 1.0.0.1" >> /etc/resolv.conf
+  - echo "nameserver 8.8.8.8" >> /etc/resolv.conf
+  - echo "nameserver 8.8.4.4" >> /etc/resolv.conf
+  - echo "DNS configured at $(date)" >> /var/log/vibestack-dns.log
+
+write_files:
+  # Backup DNS config
+  - content: |
+      nameserver 1.1.1.1
+      nameserver 1.0.0.1
+      nameserver 8.8.8.8
+      nameserver 8.8.4.4
+    path: /etc/resolv.conf.vibestack
+    permissions: '0644'
+
+  # Cloudflare Tunnel configuration
+  - content: |
+      ENABLE_CLOUDFLARE_TUNNEL=${enable_cloudflare_tunnel}
+      CLOUDFLARE_API_TOKEN=${cloudflare_api_token}
+      CLOUDFLARE_ACCOUNT_ID=${cloudflare_account_id}
+      CLOUDFLARE_ZONE_ID=${cloudflare_zone_id}
+      TUNNEL_HOSTNAME=${tunnel_hostname}
+    path: /opt/vibestack/.env
+    permissions: '0644'
+
+  # Coolify root user configuration
+  - content: |
+      COOLIFY_ROOT_USERNAME=${coolify_root_username}
+      COOLIFY_ROOT_EMAIL=${coolify_root_email}
+      COOLIFY_ROOT_PASSWORD=${coolify_root_password}
+    path: /opt/vibestack/coolify-root-user.env
+    permissions: '0600'
+    owner: root:root
+
+  # Cloudflare Tunnel setup script
+  - content: |
+      #!/bin/bash
+      set -e
+
+      # Load configuration
+      source /opt/vibestack/.env
+
+      if [ "$ENABLE_CLOUDFLARE_TUNNEL" != "true" ]; then
+        echo "Cloudflare Tunnel is disabled - skipping setup"
+        exit 0
+      fi
+
+      echo "🚀 Setting up Cloudflare Tunnel for Coolify..."
+
+      # Validate required variables
+      if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ] || [ -z "$CLOUDFLARE_ZONE_ID" ] || [ -z "$TUNNEL_HOSTNAME" ]; then
+        echo "❌ Missing required Cloudflare configuration"
+        echo "Required: cloudflare_api_token, cloudflare_account_id, cloudflare_zone_id, tunnel_hostname"
+        exit 1
+      fi
+
+      TUNNEL_NAME="coolify-tunnel-$(hostname -s)"
+
+      # Install cloudflared
+      echo "📦 Installing cloudflared..."
+      ARCH=$(dpkg --print-architecture)
+      if [ "$ARCH" = "amd64" ]; then
+        CLOUDFLARED_URL="https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64"
+      else
+        CLOUDFLARED_URL="https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64"
+      fi
+
+      curl -L "$CLOUDFLARED_URL" -o /usr/local/bin/cloudflared
+      chmod +x /usr/local/bin/cloudflared
+
+      # Create tunnel
+      echo "🔧 Creating Cloudflare Tunnel..."
+      TUNNEL_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel" \
+        -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+        -H "Content-Type: application/json" \
+        --data "{\"name\":\"$TUNNEL_NAME\",\"config_src\":\"cloudflare\"}")
+
+      TUNNEL_ID=$(echo "$TUNNEL_RESPONSE" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+
+      if [ -z "$TUNNEL_ID" ]; then
+        # Try to get existing tunnel
+        EXISTING_TUNNEL=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel?name=$TUNNEL_NAME" \
+          -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN")
+        TUNNEL_ID=$(echo "$EXISTING_TUNNEL" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+
+        if [ -z "$TUNNEL_ID" ]; then
+          echo "❌ Failed to create or find tunnel"
+          exit 1
+        fi
+        echo "✅ Using existing tunnel: $TUNNEL_ID"
+      else
+        echo "✅ Tunnel created: $TUNNEL_ID"
+      fi
+
+      # Get tunnel credentials
+      echo "🔐 Getting tunnel credentials..."
+      CREDS_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/cfd_tunnel/$TUNNEL_ID/token" \
+        -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN")
+
+      TUNNEL_TOKEN=$(echo "$CREDS_RESPONSE" | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
+
+      if [ -z "$TUNNEL_TOKEN" ]; then
+        echo "❌ Failed to get tunnel token"
+        exit 1
+      fi
+
+      # Create tunnel config directory
+      mkdir -p /etc/cloudflared
+
+      # Write tunnel credentials
+      cat > /etc/cloudflared/credentials.json <<EOF
+      {
+        "AccountTag": "$CLOUDFLARE_ACCOUNT_ID",
+        "TunnelID": "$TUNNEL_ID",
+        "TunnelSecret": "$TUNNEL_TOKEN"
+      }
+      EOF
+
+      chmod 600 /etc/cloudflared/credentials.json
+
+      # Create tunnel configuration
+      cat > /etc/cloudflared/config.yml <<EOF
+      tunnel: $TUNNEL_ID
+      credentials-file: /etc/cloudflared/credentials.json
+
+      ingress:
+        - hostname: $TUNNEL_HOSTNAME
+          service: http://localhost:8000
+          originRequest:
+            connectTimeout: 30s
+            tlsTimeout: 30s
+            tcpKeepAlive: 30s
+            keepAliveConnections: 10
+            keepAliveTimeout: 90s
+        - service: http_status:404
+      EOF
+
+      # Create DNS CNAME record
+      echo "🌐 Creating DNS record..."
+      HOSTNAME_PART=$(echo "$TUNNEL_HOSTNAME" | cut -d'.' -f1)
+      TUNNEL_DOMAIN_TARGET="$TUNNEL_ID.cfargotunnel.com"
+
+      DNS_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/dns_records" \
+        -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+        -H "Content-Type: application/json" \
+        --data "{\"type\":\"CNAME\",\"name\":\"$HOSTNAME_PART\",\"content\":\"$TUNNEL_DOMAIN_TARGET\",\"proxied\":true}")
+
+      echo "✅ DNS record created: $TUNNEL_HOSTNAME -> $TUNNEL_DOMAIN_TARGET"
+
+      # Create systemd service
+      echo "⚙️ Creating systemd service..."
+      cat > /etc/systemd/system/cloudflared-coolify-tunnel.service <<EOF
+      [Unit]
+      Description=Cloudflare Tunnel for Coolify
+      After=network.target
+
+      [Service]
+      Type=simple
+      User=root
+      ExecStart=/usr/local/bin/cloudflared tunnel --config /etc/cloudflared/config.yml run
+      Restart=on-failure
+      RestartSec=10s
+
+      [Install]
+      WantedBy=multi-user.target
+      EOF
+
+      # Enable and start service
+      systemctl daemon-reload
+      systemctl enable cloudflared-coolify-tunnel
+      systemctl start cloudflared-coolify-tunnel
+
+      echo "✅ Cloudflare Tunnel setup complete!"
+      echo "   Access Coolify at: https://$TUNNEL_HOSTNAME"
+      echo "   Tunnel ID: $TUNNEL_ID"
+
+      # Save tunnel info
+      cat > /opt/vibestack/cloudflare-tunnel-info.txt <<EOF
+      Cloudflare Tunnel Information
+      =============================
+      Tunnel ID: $TUNNEL_ID
+      Tunnel Name: $TUNNEL_NAME
+      Hostname: $TUNNEL_HOSTNAME
+      Target: $TUNNEL_DOMAIN_TARGET
+
+      Service Status: sudo systemctl status cloudflared-coolify-tunnel
+      View Logs: sudo journalctl -u cloudflared-coolify-tunnel -f
+      EOF
+
+      chmod 644 /opt/vibestack/cloudflare-tunnel-info.txt
+    path: /opt/vibestack/setup-cloudflare-tunnel.sh
+    permissions: '0755'
+
+  # Coolify installation script
+  - content: |
+      #!/bin/bash
+      set -e
+
+      echo "📦 Installing Coolify..."
+
+      # Wait for Docker to be ready
+      timeout 120 bash -c 'until docker ps >/dev/null 2>&1; do echo "Waiting for Docker..." && sleep 2; done'
+
+      # Load root user credentials safely
+      if [ -f /opt/vibestack/coolify-root-user.env ]; then
+        # Read credentials safely line by line
+        COOLIFY_ROOT_USERNAME=$(grep "^COOLIFY_ROOT_USERNAME=" /opt/vibestack/coolify-root-user.env | cut -d'=' -f2)
+        COOLIFY_ROOT_EMAIL=$(grep "^COOLIFY_ROOT_EMAIL=" /opt/vibestack/coolify-root-user.env | cut -d'=' -f2)
+        COOLIFY_ROOT_PASSWORD=$(grep "^COOLIFY_ROOT_PASSWORD=" /opt/vibestack/coolify-root-user.env | cut -d'=' -f2)
+        echo "Coolify credentials loaded for installation"
+      else
+        echo "❌ Coolify credentials file not found!"
+        exit 1
+      fi
+
+      # Retry logic for Coolify installer with environment variables
+      for attempt in $(seq 1 3); do
+        echo "Coolify installation attempt $attempt"
+        if env ROOT_USERNAME="$COOLIFY_ROOT_USERNAME" ROOT_USER_EMAIL="$COOLIFY_ROOT_EMAIL" ROOT_USER_PASSWORD="$COOLIFY_ROOT_PASSWORD" bash -c 'curl -fsSL https://cdn.coollabs.io/coolify/install.sh | bash'; then
+          echo "✅ Coolify installation successful"
+
+          # Wait for Coolify to be ready
+          timeout 120 bash -c 'until curl -f http://localhost:8000 >/dev/null 2>&1; do echo "Waiting for Coolify..." && sleep 5; done'
+
+          echo "✅ Coolify is ready!"
+          echo "   Access at: http://localhost:8000"
+          echo "   Username: $COOLIFY_ROOT_USERNAME"
+          echo "   Email: $COOLIFY_ROOT_EMAIL"
+          exit 0
+        else
+          echo "Coolify installation attempt $attempt failed"
+          if [ $attempt -lt 3 ]; then
+            echo "Waiting 30 seconds before retry..."
+            sleep 30
+            # Check for and wait for package locks to clear
+            timeout 60 bash -c 'while lsof /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 3; done' || true
+          fi
+        fi
+      done
+
+      echo "❌ Coolify installation failed after 3 attempts"
+      exit 1
+    path: /opt/vibestack/install-coolify.sh
+    permissions: '0755'
+
+users:
+  - name: ubuntu
+    groups: sudo
+    shell: /bin/bash
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']
+    ssh_authorized_keys:
+%{ for key in split("\n", ssh_authorized_keys) ~}
+%{ if trimspace(key) != "" ~}
+      - ${trimspace(key)}
+%{ endif ~}
+%{ endfor ~}
+
+ssh_pwauth: false
+
+# All package installation happens AFTER DNS is working
+runcmd:
+  # Ensure DNS is working
+  - cp /etc/resolv.conf.vibestack /etc/resolv.conf
+  - echo "Starting VibeStack setup at $(date)" >> /var/log/vibestack-setup.log
+
+  # Test DNS resolution before proceeding
+  - timeout 30 bash -c 'until nslookup ubuntu.com; do echo "Waiting for DNS..." >> /var/log/vibestack-setup.log; sleep 2; done'
+
+  # Wait for any automatic package management to complete
+  - |
+    echo "Waiting for automatic package management to complete..." >> /var/log/vibestack-setup.log
+    timeout 300 bash -c 'while sudo lsof /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do echo "Waiting for dpkg lock..." >> /var/log/vibestack-setup.log; sleep 5; done'
+    timeout 300 bash -c 'while sudo lsof /var/lib/apt/lists/lock >/dev/null 2>&1; do echo "Waiting for apt lock..." >> /var/log/vibestack-setup.log; sleep 5; done'
+    timeout 300 bash -c 'while sudo lsof /var/cache/apt/archives/lock >/dev/null 2>&1; do echo "Waiting for apt cache lock..." >> /var/log/vibestack-setup.log; sleep 5; done'
+    echo "Package management locks cleared" >> /var/log/vibestack-setup.log
+
+  # Now safely update packages with working DNS
+  - |
+    for i in $(seq 1 3); do
+      echo "Package update attempt $i" >> /var/log/vibestack-setup.log
+      if apt-get update; then
+        echo "Package update successful" >> /var/log/vibestack-setup.log
+        break
+      else
+        echo "Package update failed, waiting 10 seconds..." >> /var/log/vibestack-setup.log
+        sleep 10
+      fi
+    done
+
+  - |
+    for i in $(seq 1 3); do
+      echo "Package install attempt $i" >> /var/log/vibestack-setup.log
+      if apt-get install -y curl wget git jq lsof docker.io docker-compose; then
+        echo "Package install successful" >> /var/log/vibestack-setup.log
+        break
+      else
+        echo "Package install failed, waiting 15 seconds..." >> /var/log/vibestack-setup.log
+        sleep 15
+        timeout 60 bash -c 'while sudo lsof /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do sleep 2; done' || true
+      fi
+    done
+
+  # Create directories
+  - mkdir -p /opt/vibestack
+
+  # Start Docker
+  - systemctl enable docker
+  - systemctl start docker
+  - usermod -aG docker ubuntu
+
+%{ if skip_ansible_execution ~}
+  # TESTING MODE - Skipping automatic execution
+  - |
+    echo "=============================================" >> /var/log/vibestack-setup.log
+    echo "TESTING MODE ENABLED" >> /var/log/vibestack-setup.log
+    echo "=============================================" >> /var/log/vibestack-setup.log
+    echo "Scripts created but not executed automatically." >> /var/log/vibestack-setup.log
+    echo "" >> /var/log/vibestack-setup.log
+    echo "To run setup manually:" >> /var/log/vibestack-setup.log
+    echo "  /opt/vibestack/install-coolify.sh" >> /var/log/vibestack-setup.log
+    echo "  /opt/vibestack/setup-cloudflare-tunnel.sh" >> /var/log/vibestack-setup.log
+    echo "=============================================" >> /var/log/vibestack-setup.log
+
+%{ else ~}
+  # Install Coolify
+  - /opt/vibestack/install-coolify.sh >> /var/log/coolify-install.log 2>&1
+
+  # Setup Cloudflare Tunnel if enabled
+  - /opt/vibestack/setup-cloudflare-tunnel.sh >> /var/log/cloudflare-tunnel.log 2>&1 || echo "Cloudflare Tunnel setup skipped or failed"
+
+%{ endif ~}
+
+  # Log completion
+  - echo "VibeStack Coolify setup completed at $(date)" >> /var/log/vibestack-setup.log
+
+final_message: "VibeStack Coolify setup completed. Check /var/log/vibestack-setup.log for details."

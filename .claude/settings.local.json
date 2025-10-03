@@ -49,7 +49,22 @@
       "mcp__ht-mcp__ht_create_session",
       "mcp__ht-mcp__ht_take_snapshot",
       "mcp__ht-mcp__ht_send_keys",
-      "Read(//usr/**)"
+      "Read(//usr/**)",
+      "Read(//home/kasm-user/dv/projects/oci-kasm/oci/single_server/**)",
+      "Read(//home/kasm-user/dv/projects/**)",
+      "Bash(cat:*)",
+      "Bash(terraform version)",
+      "Bash(sudo gpg:*)",
+      "Bash(sudo tee:*)",
+      "Bash(sudo apt-get:*)",
+      "Bash(sudo apt-get install:*)",
+      "Bash(TERRAFORM_VERSION=\"1.9.8\")",
+      "Bash(wget:*)",
+      "Bash(unzip:*)",
+      "Bash(sudo mv:*)",
+      "Bash(terraform plan:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh api:*)"
     ],
     "deny": [],
     "ask": []
